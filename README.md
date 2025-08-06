@@ -44,7 +44,7 @@ A production-level training and performance tracking web application for sports 
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 20+ (required for Firebase CLI v14+)
 - Firebase project with Authentication, Firestore, and Hosting enabled
 - Git
 - Firebase CLI (`npm install -g firebase-tools`)
