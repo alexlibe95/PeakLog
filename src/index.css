@@ -117,4 +117,18 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Ensure all buttons have pointer cursor on hover */
+  button {
+    @apply cursor-pointer;
+  }
+  
+  button:disabled {
+    @apply cursor-not-allowed;
+  }
+  
+  /* Enhanced button hover states */
+  button:hover:not(:disabled) {
+    @apply cursor-pointer;
+  }
 }
