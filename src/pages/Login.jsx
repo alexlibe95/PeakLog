@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import PasswordlessLogin from '../components/PasswordlessLogin';
+import PeakLogLogo from '../components/icons/PeakLogLogo';
 import { Mail, Lock } from 'lucide-react';
 
 const Login = () => {
@@ -47,7 +48,10 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-700 py-12 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">🏔️ PeakLog</CardTitle>
+          <div className="flex justify-center mb-4">
+            <PeakLogLogo size="lg" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
           <CardDescription>
             Sign in to your account to start tracking your performance
           </CardDescription>

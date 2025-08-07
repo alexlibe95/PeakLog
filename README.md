@@ -1,5 +1,10 @@
 # 🏔️ PeakLog
 
+<div align="center">
+  <img src="public/icon-512.svg" alt="PeakLog Icon" width="120" height="120">
+  <br><br>
+</div>
+
 A production-level training and performance tracking web application for sports teams, originally designed for canoe/kayak groups but generic enough for any endurance sport team (rowing, swimming, running, etc.).
 
 🌐 **Live Demo**: [https://peaklog-a10b4.web.app](https://peaklog-a10b4.web.app)

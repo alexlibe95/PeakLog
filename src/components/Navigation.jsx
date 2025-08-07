@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '../context/AuthContext';
+import PeakLogLogo from './icons/PeakLogLogo';
 
 const Navigation = () => {
   const location = useLocation();
@@ -35,7 +36,7 @@ const Navigation = () => {
           {/* Logo and Navigation */}
           <div className="flex items-center space-x-8">
             <Link to="/dashboard" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold">🏔️ PeakLog</span>
+              <PeakLogLogo size="default" />
             </Link>
             
             <nav className="hidden md:flex space-x-1">

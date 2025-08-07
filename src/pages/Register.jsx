@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import PeakLogLogo from '../components/icons/PeakLogLogo';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -64,7 +65,10 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-700 py-12 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">🏔️ Join PeakLog</CardTitle>
+          <div className="flex justify-center mb-4">
+            <PeakLogLogo size="lg" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Join PeakLog</CardTitle>
           <CardDescription>
             Create your account to start tracking your athletic performance
           </CardDescription>

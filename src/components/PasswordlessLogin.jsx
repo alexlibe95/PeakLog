@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import PeakLogIcon from './icons/PeakLogIcon';
 import { Mail, CheckCircle, ArrowLeft } from 'lucide-react';
 
 const PasswordlessLogin = ({ onBack }) => {
@@ -98,6 +99,9 @@ const PasswordlessLogin = ({ onBack }) => {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
+        <div className="flex justify-center mb-4">
+          <PeakLogIcon size={48} />
+        </div>
         <CardTitle className="text-2xl font-bold">🪄 Magic Link Sign In</CardTitle>
         <CardDescription>
           Enter your email and we'll send you a secure sign-in link
