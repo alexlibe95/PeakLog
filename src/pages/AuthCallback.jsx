@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, updateDoc, collectionGroup, getDocs, query, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from "@/components/ui/button";
@@ -6,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, AlertCircle, Mail } from 'lucide-react';
+import { isSignInWithEmailLink } from 'firebase/auth';
 
 const AuthCallback = () => {
   const [loading, setLoading] = useState(true);
@@ -15,13 +19,94 @@ const AuthCallback = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { completeSignInWithEmailLink } = useAuth();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const handledRef = useRef(false);
+
+  const linkMembershipIfAny = async () => {
+    const invite = searchParams.get('invite');
+    const clubId = searchParams.get('club');
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      if (invite && clubId) {
+        const inviteRef = doc(db, 'clubs', clubId, 'invites', invite);
+        const snap = await getDoc(inviteRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          const now = new Date();
+          const notExpired = !data.expiresAt || new Date(data.expiresAt) >= now;
+          const emailMatches = String(data.email || '').toLowerCase() === String(user.email || '').toLowerCase();
+          if (data.status === 'pending' && notExpired && emailMatches) {
+            const role = data.role || 'athlete';
+            await setDoc(doc(db, 'clubs', clubId, 'members', user.uid), {
+              role,
+              status: 'active',
+              inviteId: invite,
+              joinedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+            await setDoc(doc(db, 'users', user.uid), {
+              role,
+              teamId: clubId,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+            await updateDoc(inviteRef, { status: 'used', usedAt: new Date().toISOString() });
+            return;
+          }
+        }
+      }
+      // Fallback: collection group query by email OR by invite token only
+      const constraints = [where('status', '==', 'pending')];
+      // We can only add one 'where' per field; run two queries and merge
+      const cgEmail = await getDocs(query(collectionGroup(db, 'invites'), where('email', '==', user.email), ...constraints));
+      const cgList = [...cgEmail.docs];
+      if (invite && cgList.length === 0) {
+        // Try to find invite by id across clubs
+        const cgToken = await getDocs(query(collectionGroup(db, 'invites'), where('__name__', '>=', '')));
+        const found = cgToken.docs.find((d) => d.id === invite && d.data().status === 'pending');
+        if (found) cgList.push(found);
+      }
+      for (const d of cgList) {
+        const data = d.data();
+        const club = d.ref.parent.parent.id;
+        const now = new Date();
+        if (data.expiresAt && new Date(data.expiresAt) < now) continue;
+        const role = data.role || 'athlete';
+        await setDoc(doc(db, 'clubs', club, 'members', user.uid), {
+          role,
+          status: 'active',
+          inviteId: d.id,
+          joinedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        await setDoc(doc(db, 'users', user.uid), {
+          role,
+          teamId: club,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        await updateDoc(d.ref, { status: 'used', usedAt: new Date().toISOString() });
+        break;
+      }
+    } catch (e) {
+      console.error('Invite linking failed', e);
+    }
+  };
 
   useEffect(() => {
     const handleEmailLinkSignIn = async () => {
+      if (handledRef.current) return;
+      handledRef.current = true;
       try {
+        // Only attempt completion if the URL is an email-link
+        if (!isSignInWithEmailLink(auth, window.location.href)) {
+          setError('Invalid or expired sign-in link. Please request a new magic link.');
+          setLoading(false);
+          return;
+        }
         // Try to complete sign-in automatically (same device)
         await completeSignInWithEmailLink();
+        await linkMembershipIfAny();
         navigate('/dashboard');
       } catch (error) {
         console.error('Auto sign-in failed:', error);
@@ -54,6 +139,7 @@ const AuthCallback = () => {
 
     try {
       await completeSignInWithEmailLink(email);
+      await linkMembershipIfAny();
       navigate('/dashboard');
     } catch (error) {
       console.error('Manual sign-in failed:', error);

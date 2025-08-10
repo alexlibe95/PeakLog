@@ -1,12 +1,67 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Navigation from '../components/Navigation';
+import { collection, getCountFromServer, getDocs, query, where } from 'firebase/firestore';
 
 const Dashboard = () => {
   const { user, userProfile, logout, isAdmin } = useAuth();
+  const [teamName, setTeamName] = useState('');
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [totalClubs, setTotalClubs] = useState(0);
+  const [totalAdmins, setTotalAdmins] = useState(0);
+  const [totalAthletes, setTotalAthletes] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (userProfile?.teamId) {
+          const snap = await getDoc(doc(db, 'clubs', userProfile.teamId));
+          if (snap.exists()) setTeamName(snap.data().name || userProfile.teamId);
+          else setTeamName(userProfile.teamId);
+        } else {
+          setTeamName('');
+        }
+      } catch (e) {
+        setTeamName(userProfile?.teamId || '');
+      }
+    })();
+  }, [userProfile?.teamId]);
+
+  const isSuper = userProfile?.role === 'super';
+
+  useEffect(() => {
+    if (!isSuper) return;
+    (async () => {
+      setStatsLoading(true);
+      try {
+        const clubsSnap = await getDocs(collection(db, 'clubs'));
+        const clubIds = clubsSnap.docs.map((d) => d.id);
+        setTotalClubs(clubIds.length);
+        let admins = 0;
+        let athletes = 0;
+        await Promise.all(
+          clubIds.map(async (id) => {
+            const a = await getCountFromServer(query(collection(db, 'clubs', id, 'members'), where('role', '==', 'admin')));
+            const at = await getCountFromServer(query(collection(db, 'clubs', id, 'members'), where('role', '==', 'athlete')));
+            admins += a.data().count || 0;
+            athletes += at.data().count || 0;
+          })
+        );
+        setTotalAdmins(admins);
+        setTotalAthletes(athletes);
+      } catch (e) {
+        // ignore
+      } finally {
+        setStatsLoading(false);
+      }
+    })();
+  }, [isSuper]);
 
   const handleLogout = async () => {
     try {
@@ -20,6 +75,8 @@ const Dashboard = () => {
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   };
 
+  // Super admin overview section
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -29,13 +86,51 @@ const Dashboard = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {userProfile?.firstName || user?.email || 'Athlete'}! Here's your training overview.
+            {isSuper ? 'Super Admin overview' : `Welcome back, ${userProfile?.firstName || user?.email || 'Athlete'}! Here's your training overview.`}
           </p>
         </div>
       </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {/* Super overview */}
+        {isSuper && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Clubs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statsLoading ? '—' : totalClubs}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Admins</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statsLoading ? '—' : totalAdmins}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Athletes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statsLoading ? '—' : totalAthletes}</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Pending role notice */}
+        {userProfile?.role === 'pending' && (
+          <div className="mb-6 p-4 border rounded bg-yellow-50 text-yellow-900">
+            <div className="font-medium">Limited access</div>
+            <div className="text-sm">Your account is pending assignment to a club. A super admin or club admin must invite you to a club to unlock full features.</div>
+          </div>
+        )}
+
         {/* Welcome Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -145,7 +240,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground">Team</h4>
-                  <p className="text-sm">{userProfile?.teamId || 'PeakLog Team'}</p>
+                  <p className="text-sm">{teamName || '—'}</p>
                 </div>
               </div>
             </div>

@@ -21,13 +21,28 @@ const Navigation = () => {
     }
   };
 
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-    { path: '/training-logs', label: 'Training Logs', icon: '📝' },
-    { path: '/personal-records', label: 'Personal Records', icon: '🏆' },
-    { path: '/goals', label: 'Goals', icon: '🎯' },
-    { path: '/attendance', label: 'Attendance', icon: '📊' },
-  ];
+  const isSuper = userProfile?.role === 'super';
+
+  const isPending = userProfile?.role === 'pending';
+  const navItems = isSuper
+    ? [
+        { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+        { path: '/admin', label: 'Admin', icon: '🛠️' },
+      ]
+    : isPending
+    ? [
+        { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+      ]
+    : [
+        { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+        { path: '/training-logs', label: 'Training Logs', icon: '📝' },
+        { path: '/personal-records', label: 'Personal Records', icon: '🏆' },
+        { path: '/goals', label: 'Goals', icon: '🎯' },
+        { path: '/attendance', label: 'Attendance', icon: '📊' },
+        ...(userProfile?.role === 'admin' ? [
+          { path: '/admin', label: 'Admin', icon: '🛠️' },
+        ] : []),
+      ];
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

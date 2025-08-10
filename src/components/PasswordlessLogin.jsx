@@ -12,6 +12,7 @@ const PasswordlessLogin = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState('');
+  const [inviteRaw, setInviteRaw] = useState('');
   
   const { sendSignInLink } = useAuth();
 
@@ -35,7 +36,26 @@ const PasswordlessLogin = ({ onBack }) => {
     }
 
     try {
-      await sendSignInLink(email);
+      // Parse optional invite/club from user-provided input
+      let invite = '';
+      let club = '';
+      const raw = inviteRaw.trim();
+      if (raw) {
+        try {
+          const url = new URL(raw);
+          invite = url.searchParams.get('invite') || '';
+          club = url.searchParams.get('club') || '';
+        } catch {
+          // Not a URL: treat as token string, no club known
+          invite = raw;
+        }
+      }
+
+      const extraParams = {};
+      if (invite) extraParams.invite = invite;
+      if (club) extraParams.club = club;
+
+      await sendSignInLink(email, extraParams);
       setEmailSent(true);
     } catch (error) {
       console.error('Error sending sign-in link:', error);
@@ -131,18 +151,35 @@ const PasswordlessLogin = ({ onBack }) => {
             />
           </div>
           
-          <div className="rounded-md bg-gray-50 p-4">
-            <div className="text-sm text-gray-600">
-              <p className="font-medium mb-1">✨ Why use magic links?</p>
-              <ul className="text-xs space-y-1">
-                <li>• No password to remember</li>
-                <li>• More secure than passwords</li>
-                <li>• Quick and easy access</li>
-              </ul>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite">Invitation link or code (optional)</Label>
+              <Input
+                id="invite"
+                name="invite"
+                type="text"
+                value={inviteRaw}
+                onChange={(e) => setInviteRaw(e.target.value)}
+                placeholder="Paste the invitation link or token if you have one"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                If provided, your magic link will include the invite so you are auto-linked to the correct club after login.
+              </p>
             </div>
-          </div>
 
-          <div className="space-y-3">
+            <div className="rounded-md bg-gray-50 p-4">
+              <div className="text-sm text-gray-600">
+                <p className="font-medium mb-1">✨ Why use magic links?</p>
+                <ul className="text-xs space-y-1">
+                  <li>• No password to remember</li>
+                  <li>• More secure than passwords</li>
+                  <li>• Quick and easy access</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="space-y-3">
             <Button 
               type="submit" 
               disabled={loading}
@@ -171,7 +208,8 @@ const PasswordlessLogin = ({ onBack }) => {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to password login
             </Button>
-          </div>
+            </div>
+            </div>
         </CardContent>
       </form>
     </Card>

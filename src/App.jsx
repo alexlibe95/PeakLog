@@ -6,7 +6,8 @@ import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import TrainingLogs from './pages/TrainingLogs';
-import ShadcnTest from './components/TailwindTest';
+import AdminPage from './pages/AdminPage';
+import SuperAdminPage from './pages/SuperAdminPage';
 
 function App() {
   return (
@@ -17,7 +18,6 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/auth-callback" element={<AuthCallback />} />
-          <Route path="/test" element={<ShadcnTest />} />
           
           {/* Protected Routes */}
           <Route 
@@ -33,6 +33,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <TrainingLogs />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/super" 
+            element={
+              <ProtectedRoute superOnly>
+                <SuperAdminPage />
               </ProtectedRoute>
             } 
           />

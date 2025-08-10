@@ -2,13 +2,19 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function userRole() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+    function isSuper() { return userRole() == 'super'; }
+    function isAdmin() { return userRole() == 'admin' || isSuper(); }
     // Users can read/write their own user document
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Admins can read all user documents
-      allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Writes to users collection should be limited; allow self-updates to non-privileged fields.
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
     
     // Training logs - users can CRUD their own, admins can read all
@@ -16,8 +22,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null && 
         request.auth.uid == resource.data.userId;
       allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        isAdmin();
     }
     
     // Personal records - users can CRUD their own, admins can read all
@@ -25,8 +30,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null && 
         request.auth.uid == resource.data.userId;
       allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        isAdmin();
     }
     
     // Attendance records - users can read their own, admins can CRUD all
@@ -34,8 +38,7 @@ service cloud.firestore {
       allow read: if request.auth != null && 
         request.auth.uid == resource.data.userId;
       allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        isAdmin();
     }
     
     // Goals - users can CRUD their own, admins can read all
@@ -43,18 +46,45 @@ service cloud.firestore {
       allow read, write: if request.auth != null && 
         request.auth.uid == resource.data.userId;
       allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        isAdmin();
     }
     
     // Teams - admins can CRUD, users can read their team info
     match /teams/{teamId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
     
+    // Clubs multi-tenant model
+    match /clubs/{clubId} {
+      allow read: if isSignedIn() && isAdmin();
+      allow write: if isSignedIn() && isSuper();
+
+      match /members/{memberId} {
+        allow read: if isSignedIn() && (isAdmin() || isSuper() || request.auth.uid == memberId);
+        // Allow admin/super to manage memberships
+        allow write: if isSignedIn() && (isAdmin() || isSuper());
+        // Allow invited user to create their own membership using a valid inviteId field
+        allow create: if isSignedIn() && request.auth.uid == memberId &&
+          request.resource.data.inviteId is string &&
+          exists(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)) &&
+          get(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)).data.email == request.auth.token.email;
+      }
+
+      match /invites/{inviteId} {
+        // Allow invited user to read their invite by email; admins/supers can manage
+        allow read: if isSignedIn() && (
+          (request.auth.token.email == resource.data.email) ||
+          isAdmin() || isSuper()
+        );
+        // Admins/supers can create/delete; invited user can delete their own invite
+        allow create: if isSignedIn() && (isAdmin() || isSuper());
+        allow delete: if isSignedIn() && ((isAdmin() || isSuper()) || request.auth.token.email == resource.data.email);
+        // Allow invited user to mark invite as used
+        allow update: if isSignedIn() && request.auth.token.email == resource.data.email;
+      }
+    }
+
     // Deny all other reads/writes
     match /{document=**} {
       allow read, write: if false;

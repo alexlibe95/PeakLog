@@ -8,7 +8,7 @@ import {
   signInWithEmailLink,
   isSignInWithEmailLink
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collectionGroup, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
 const AuthContext = createContext({});
@@ -25,21 +25,28 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [claims, setClaims] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        // Load custom claims
+        try {
+          const tokenResult = await firebaseUser.getIdTokenResult(true);
+          setClaims(tokenResult?.claims || null);
+        } catch (e) {
+          console.error('Error fetching ID token claims', e);
+          setClaims(null);
+        }
+
         // Fetch user profile from Firestore
         try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data());
-          } else {
-            // Create default profile for new users
+          let userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (!userDocSnap.exists()) {
             const defaultProfile = {
-              email: user.email,
-              role: 'athlete', // Default role
+              email: firebaseUser.email,
+              role: 'pending',
               firstName: '',
               lastName: '',
               sport: '',
@@ -47,8 +54,54 @@ export const AuthProvider = ({ children }) => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             };
-            await setDoc(doc(db, 'users', user.uid), defaultProfile);
-            setUserProfile(defaultProfile);
+            await setDoc(doc(db, 'users', firebaseUser.uid), defaultProfile);
+            userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          }
+
+          let profile = userDocSnap.data();
+          setUserProfile(profile);
+
+          // If user not linked yet, try to attach any pending invite by email
+          if (!profile?.teamId || profile?.role === 'pending') {
+            try {
+              const cg = await getDocs(query(
+                collectionGroup(db, 'invites'),
+                where('email', '==', firebaseUser.email),
+                where('status', '==', 'pending')
+              ));
+              for (const d of cg.docs) {
+                const data = d.data();
+                const clubId = d.ref.parent.parent.id;
+                const now = new Date();
+                if (data.expiresAt && new Date(data.expiresAt) < now) continue;
+                const role = data.role || 'athlete';
+                await setDoc(doc(db, 'clubs', clubId, 'members', firebaseUser.uid), {
+                  role,
+                  status: 'active',
+                  inviteId: d.id,
+                  joinedAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }, { merge: true });
+                await setDoc(doc(db, 'users', firebaseUser.uid), {
+                  role,
+                  teamId: clubId,
+                  updatedAt: new Date().toISOString(),
+                }, { merge: true });
+                // Remove invite after use
+                await d.ref.delete?.();
+                if (!d.ref.delete) {
+                  // Fallback to update if SDK doesn't expose delete on ref
+                  await updateDoc(d.ref, { status: 'used', usedAt: new Date().toISOString() });
+                }
+                // refresh profile after linking
+                const refreshed = await getDoc(doc(db, 'users', firebaseUser.uid));
+                profile = refreshed.data();
+                setUserProfile(profile);
+                break;
+              }
+            } catch (linkErr) {
+              console.error('Error linking pending invite on auth state change', linkErr);
+            }
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
@@ -56,6 +109,7 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUser(null);
         setUserProfile(null);
+        setClaims(null);
       }
       setLoading(false);
     });
@@ -90,8 +144,12 @@ export const AuthProvider = ({ children }) => {
     return signOut(auth);
   };
 
+  const isSuper = () => {
+    return claims?.super_admin === true || userProfile?.role === 'super';
+  };
+
   const isAdmin = () => {
-    return userProfile?.role === 'admin';
+    return isSuper() || userProfile?.role === 'admin';
   };
 
   const isAthlete = () => {
@@ -99,20 +157,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Email Link Authentication Methods
-  const sendSignInLink = async (email) => {
+  const sendSignInLink = async (email, extraParams = {}, options = { saveEmailLocally: true }) => {
+    const params = new URLSearchParams(extraParams);
+    const url = params.toString()
+      ? `${window.location.origin}/auth-callback?${params.toString()}`
+      : `${window.location.origin}/auth-callback`;
+
     const actionCodeSettings = {
-      // URL you want to redirect back to. The domain (www.example.com) for this
-      // URL must be in the authorized domains list in the Firebase Console.
-      url: `${window.location.origin}/auth-callback`,
-      // This must be true.
+      url,
       handleCodeInApp: true,
     };
 
     try {
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      // Save the email locally so you don't need to ask the user for it again
-      // if they open the link on the same device.
-      window.localStorage.setItem('emailForSignIn', email);
+      if (options?.saveEmailLocally !== false) {
+        // Save the email locally so you don't need to ask the user for it again
+        // if they open the link on the same device.
+        window.localStorage.setItem('emailForSignIn', email);
+      }
       return { success: true };
     } catch (error) {
       console.error('Error sending sign-in link:', error);
@@ -173,9 +235,11 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     userProfile,
+    claims,
     login,
     register,
     logout,
+    isSuper,
     isAdmin,
     isAthlete,
     loading,
