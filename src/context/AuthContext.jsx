@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { 
+import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -8,8 +8,9 @@ import {
   signInWithEmailLink,
   isSignInWithEmailLink
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collectionGroup, getDocs, query, where, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, collectionGroup, getDocs, query, where, updateDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+import { clubService } from '../services/clubService';
 
 const AuthContext = createContext({});
 
@@ -24,8 +25,11 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [memberships, setMemberships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [claims, setClaims] = useState(null);
+  const [currentClubId, setCurrentClubId] = useState(null);
+  const [currentRole, setCurrentRole] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -42,7 +46,18 @@ export const AuthProvider = ({ children }) => {
 
         // Fetch user profile from Firestore
         try {
+          console.log('🔧 AuthContext Fetching user profile:', {
+            userId: firebaseUser.uid,
+            userEmail: firebaseUser.email,
+            authProvider: firebaseUser.providerData?.[0]?.providerId
+          });
           let userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          console.log('🔧 AuthContext User document check:', {
+            exists: userDocSnap.exists(),
+            documentId: userDocSnap.id,
+            userId: firebaseUser.uid
+          });
+
           if (!userDocSnap.exists()) {
             const defaultProfile = {
               email: firebaseUser.email,
@@ -50,7 +65,7 @@ export const AuthProvider = ({ children }) => {
               firstName: '',
               lastName: '',
               sport: '',
-              teamId: '',
+              memberships: [], // New structure for multiple club memberships
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             };
@@ -59,48 +74,81 @@ export const AuthProvider = ({ children }) => {
           }
 
           let profile = userDocSnap.data();
+          console.log('🔧 AuthContext User Profile Loaded:', {
+            userId: firebaseUser.uid,
+            email: firebaseUser.email,
+            profileRole: profile?.role,
+            profileEmail: profile?.email,
+            hasSuperRole: profile?.role === 'super'
+          });
           setUserProfile(profile);
 
-          // If user not linked yet, try to attach any pending invite by email
-          if (!profile?.teamId || profile?.role === 'pending') {
+          // Load user memberships
+          const userMemberships = await clubService.getUserMemberships(firebaseUser.uid);
+          setMemberships(userMemberships);
+
+          // Set default current club and role if user has memberships
+          if (userMemberships.length > 0) {
+            const firstMembership = userMemberships[0];
+            setCurrentClubId(firstMembership.clubId);
+            setCurrentRole(firstMembership.role);
+          }
+
+          // If user not linked yet, try to attach any pending assignments by email
+          if (userMemberships.length === 0 || profile?.role === 'pending') {
             try {
-              const cg = await getDocs(query(
-                collectionGroup(db, 'invites'),
-                where('email', '==', firebaseUser.email),
-                where('status', '==', 'pending')
-              ));
-              for (const d of cg.docs) {
-                const data = d.data();
-                const clubId = d.ref.parent.parent.id;
-                const now = new Date();
-                if (data.expiresAt && new Date(data.expiresAt) < now) continue;
-                const role = data.role || 'athlete';
-                await setDoc(doc(db, 'clubs', clubId, 'members', firebaseUser.uid), {
-                  role,
-                  status: 'active',
-                  inviteId: d.id,
-                  joinedAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }, { merge: true });
-                await setDoc(doc(db, 'users', firebaseUser.uid), {
-                  role,
-                  teamId: clubId,
-                  updatedAt: new Date().toISOString(),
-                }, { merge: true });
-                // Remove invite after use
-                await d.ref.delete?.();
-                if (!d.ref.delete) {
-                  // Fallback to update if SDK doesn't expose delete on ref
-                  await updateDoc(d.ref, { status: 'used', usedAt: new Date().toISOString() });
+              // Check for pending assignments across all clubs
+              const clubsSnap = await getDocs(collection(db, 'clubs'));
+              for (const clubDoc of clubsSnap.docs) {
+                const clubId = clubDoc.id;
+                const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', firebaseUser.email.replace('.', '_'));
+                const assignmentSnap = await getDoc(assignmentRef);
+
+                if (assignmentSnap.exists()) {
+                  const assignmentData = assignmentSnap.data();
+                  const role = assignmentData.role || 'athlete';
+
+                  // Add user to club membership
+                  await setDoc(doc(db, 'clubs', clubId, 'members', firebaseUser.uid), {
+                    role,
+                    status: 'active',
+                    assignedAt: assignmentData.assignedAt,
+                    joinedAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  }, { merge: true });
+
+                  // Update user profile with new membership
+                  await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                    memberships: arrayUnion({
+                      clubId,
+                      role,
+                      joinedAt: new Date().toISOString()
+                    }),
+                    role: profile.role === 'pending' ? role : profile.role,
+                    updatedAt: new Date().toISOString(),
+                  });
+
+                  // Mark assignment as completed and remove it
+                  await deleteDoc(assignmentRef);
+
+                  // refresh profile and memberships after linking
+                  const refreshed = await getDoc(doc(db, 'users', firebaseUser.uid));
+                  profile = refreshed.data();
+                  setUserProfile(profile);
+
+                  const refreshedMemberships = await clubService.getUserMemberships(firebaseUser.uid);
+                  setMemberships(refreshedMemberships);
+
+                  // Set current club and role if not set
+                  if (!currentClubId && refreshedMemberships.length > 0) {
+                    setCurrentClubId(refreshedMemberships[0].clubId);
+                    setCurrentRole(refreshedMemberships[0].role);
+                  }
+                  break;
                 }
-                // refresh profile after linking
-                const refreshed = await getDoc(doc(db, 'users', firebaseUser.uid));
-                profile = refreshed.data();
-                setUserProfile(profile);
-                break;
               }
             } catch (linkErr) {
-              console.error('Error linking pending invite on auth state change', linkErr);
+              console.error('Error linking assignment on auth state change', linkErr);
             }
           }
         } catch (error) {
@@ -109,6 +157,9 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUser(null);
         setUserProfile(null);
+        setMemberships([]);
+        setCurrentClubId(null);
+        setCurrentRole(null);
         setClaims(null);
       }
       setLoading(false);
@@ -123,19 +174,19 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password, profileData = {}) => {
     const { user } = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Create user profile in Firestore
+
+    // Create user profile in Firestore with new structure
     const userProfile = {
       email: user.email,
-      role: profileData.role || 'athlete',
+      role: profileData.role || 'pending',
       firstName: profileData.firstName || '',
       lastName: profileData.lastName || '',
       sport: profileData.sport || '',
-      teamId: profileData.teamId || '',
+      memberships: [], // Start with empty memberships array
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    
+
     await setDoc(doc(db, 'users', user.uid), userProfile);
     return user;
   };
@@ -145,15 +196,118 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isSuper = () => {
-    return claims?.super_admin === true || userProfile?.role === 'super';
+    const result = currentRole === 'super' || claims?.super_admin === true || userProfile?.role === 'super';
+    return result;
   };
 
-  const isAdmin = () => {
-    return isSuper() || userProfile?.role === 'admin';
+  const isAdmin = (clubId = null) => {
+    if (isSuper()) return true;
+
+    // If specific club requested, check membership
+    if (clubId) {
+      const membership = memberships.find(m => m.clubId === clubId);
+      return membership?.role === 'admin';
+    }
+
+    // Check current role context first
+    if (currentRole && currentRole !== 'super') {
+      return currentRole === 'admin';
+    }
+
+    // Check if user is admin in any club
+    return memberships.some(m => m.role === 'admin') || userProfile?.role === 'admin';
   };
 
-  const isAthlete = () => {
-    return userProfile?.role === 'athlete';
+  const isAthlete = (clubId = null) => {
+    if (clubId) {
+      const membership = memberships.find(m => m.clubId === clubId);
+      return membership?.role === 'athlete';
+    }
+
+    // Check current role context first
+    if (currentRole && currentRole !== 'super') {
+      return currentRole === 'athlete';
+    }
+
+    // Check if user has any athlete memberships
+    return memberships.some(m => m.role === 'athlete') || userProfile?.role === 'athlete';
+  };
+
+  const hasMultipleRoles = () => {
+    const roles = new Set(memberships.map(m => m.role));
+    return roles.size > 1;
+  };
+
+  const switchRole = (clubId, role) => {
+    console.log('🔄 AuthContext switchRole called:', { clubId, role, previousClubId: currentClubId, previousRole: currentRole });
+
+    // Handle super admin role switching (not club-based)
+    if (role === 'super') {
+      // Check if user has super admin permissions before allowing switch
+      const hasSuperPermissions = userProfile?.role === 'super' || claims?.super_admin === true;
+      if (hasSuperPermissions) {
+        console.log('✅ Switching to super admin role');
+        setCurrentClubId(null);
+        setCurrentRole('super');
+        return true;
+      } else {
+        console.log('❌ User does not have super admin permissions');
+        return false;
+      }
+    }
+
+    // Handle club-based roles (admin/athlete)
+    const membership = memberships.find(m => m.clubId === clubId && m.role === role);
+    if (membership) {
+      console.log('✅ Switching to membership:', membership);
+      setCurrentClubId(clubId);
+      setCurrentRole(role);
+      return true;
+    } else {
+      console.log('❌ Membership not found for:', { clubId, role });
+      return false;
+    }
+  };
+
+  const getCurrentMembership = () => {
+    if (!currentClubId || !currentRole) return null;
+    return memberships.find(m => m.clubId === currentClubId && m.role === currentRole);
+  };
+
+  const refreshMemberships = async () => {
+    if (user) {
+      const userMemberships = await clubService.getUserMemberships(user.uid);
+      setMemberships(userMemberships);
+
+      // Update current selection if needed
+      if (currentClubId && currentRole) {
+        const currentExists = userMemberships.some(m => m.clubId === currentClubId && m.role === currentRole);
+        if (!currentExists && userMemberships.length > 0) {
+          setCurrentClubId(userMemberships[0].clubId);
+          setCurrentRole(userMemberships[0].role);
+        }
+      }
+    }
+  };
+
+  const updateUserProfile = async (updatedProfile) => {
+    if (!user) return;
+
+    try {
+      // Update in Firestore
+      await updateDoc(doc(db, 'users', user.uid), {
+        ...updatedProfile,
+        updatedAt: new Date()
+      });
+
+      // Update local state
+      setUserProfile(updatedProfile);
+
+      return true;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
   };
 
   // Email Link Authentication Methods
@@ -191,7 +345,7 @@ export const AuthProvider = ({ children }) => {
 
       // Get the email if available. This should be available if on the same device.
       let emailForSignIn = email || window.localStorage.getItem('emailForSignIn');
-      
+
       if (!emailForSignIn) {
         // User opened the link on a different device. To prevent session fixation
         // attacks, ask the user to provide the associated email again.
@@ -204,27 +358,27 @@ export const AuthProvider = ({ children }) => {
 
       // Complete the sign-in
       const result = await signInWithEmailLink(auth, emailForSignIn, window.location.href);
-      
+
       // Clear the email from storage.
       window.localStorage.removeItem('emailForSignIn');
-      
+
       // Check if user profile exists, create if needed
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
       if (!userDoc.exists()) {
-        // Create default profile for new email link users
+        // Create default profile for new email link users with new structure
         const defaultProfile = {
           email: result.user.email,
-          role: 'athlete',
+          role: 'pending',
           firstName: '',
           lastName: '',
           sport: '',
-          teamId: '',
+          memberships: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
         await setDoc(doc(db, 'users', result.user.uid), defaultProfile);
       }
-      
+
       return result;
     } catch (error) {
       console.error('Error completing sign-in with email link:', error);
@@ -235,16 +389,24 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     userProfile,
+    memberships,
+    currentClubId,
+    currentRole,
     claims,
     login,
     register,
     logout,
-    isSuper,
-    isAdmin,
-    isAthlete,
+    isSuper: isSuper || (() => false),
+    isAdmin: isAdmin || (() => false),
+    isAthlete: isAthlete || (() => false),
+    hasMultipleRoles: hasMultipleRoles || (() => false),
+    switchRole: switchRole || (() => false),
+    getCurrentMembership: getCurrentMembership || (() => null),
+    refreshMemberships: refreshMemberships || (() => Promise.resolve()),
+    updateUserProfile: updateUserProfile || (() => Promise.reject(new Error('Not available'))),
     loading,
-    sendSignInLink,
-    completeSignInWithEmailLink
+    sendSignInLink: sendSignInLink || (() => Promise.reject(new Error('Not available'))),
+    completeSignInWithEmailLink: completeSignInWithEmailLink || (() => Promise.reject(new Error('Not available')))
   };
 
   return (

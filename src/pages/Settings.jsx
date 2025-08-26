@@ -1,0 +1,497 @@
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
+import Navigation from '../components/Navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/components/ui/toast-context";
+import { doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '../lib/firebase';
+import { User, Mail, Settings as SettingsIcon, Camera, Upload, X, Shield, Users } from 'lucide-react';
+
+const Settings = () => {
+  const { user, userProfile, updateUserProfile, memberships, isSuper } = useAuth();
+  const { toast } = useToast();
+
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || ''
+      });
+    }
+  }, [userProfile]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File",
+        description: "Please select an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !user) return;
+
+    setIsUploading(true);
+    try {
+      // Delete existing profile picture if it exists
+      if (userProfile?.profilePicture) {
+        try {
+          const oldImageRef = ref(storage, userProfile.profilePicture);
+          await deleteObject(oldImageRef);
+        } catch (error) {
+          console.error('Error deleting old image:', error);
+          // Continue with upload even if delete fails
+        }
+      }
+
+      // Upload new image
+      const fileName = `profile-pictures/${user.uid}/${Date.now()}-${selectedFile.name}`;
+      const storageRef = ref(storage, fileName);
+      await uploadBytes(storageRef, selectedFile);
+
+      // Get download URL
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Update user profile with new image URL
+      await updateDoc(doc(db, 'users', user.uid), {
+        profilePicture: downloadURL,
+        updatedAt: new Date()
+      });
+
+      // Update local state
+      await updateUserProfile({
+        ...userProfile,
+        profilePicture: downloadURL
+      });
+
+      // Clean up
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      toast({
+        title: "Profile Picture Updated",
+        description: "Your profile picture has been uploaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload profile picture. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      // Update user profile in Firestore
+      await updateDoc(doc(db, 'users', user.uid), {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        updatedAt: new Date()
+      });
+
+      // Update local state
+      await updateUserProfile({
+        ...userProfile,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim()
+      });
+
+      toast({
+        title: "Settings Updated",
+        description: "Your profile information has been saved successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update your profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isFormChanged = () => {
+    return (
+      formData.firstName.trim() !== (userProfile?.firstName || '') ||
+      formData.lastName.trim() !== (userProfile?.lastName || '')
+    );
+  };
+
+  const getRoleDisplayName = (role) => {
+    switch (role) {
+      case 'super':
+        return 'Super Admin';
+      case 'admin':
+        return 'Club Admin';
+      case 'athlete':
+        return 'Athlete';
+      default:
+        return 'Pending';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+
+      {/* Page Header */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="mb-8">
+          <div className="flex items-center gap-3">
+            <SettingsIcon className="h-8 w-8 text-muted-foreground" />
+            <h1 className="text-3xl font-bold">Settings</h1>
+          </div>
+          <p className="text-muted-foreground mt-2">
+            Manage your account settings and profile information
+          </p>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl">
+          {/* Profile Information Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile Information
+              </CardTitle>
+              <CardDescription>
+                Update your personal information and account details
+              </CardDescription>
+            </CardHeader>
+                      <CardContent>
+            <form onSubmit={handleSave} className="space-y-6">
+                {/* Profile Picture Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                        {previewUrl || userProfile?.profilePicture ? (
+                          <img
+                            src={previewUrl || userProfile.profilePicture}
+                            alt="Profile"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-8 h-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      {selectedFile && (
+                        <div className="absolute -top-1 -right-1 flex gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="default"
+                            className="w-6 h-6 p-0"
+                            onClick={handleUpload}
+                            disabled={isUploading}
+                          >
+                            {isUploading ? '...' : <Upload className="w-3 h-3" />}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            className="w-6 h-6 p-0"
+                            onClick={handleCancel}
+                            disabled={isUploading}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Profile Picture</Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          {selectedFile ? 'Change Photo' : 'Upload Photo'}
+                        </Button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Max 5MB. Supports JPG, PNG, GIF.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Email (Read-only) */}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={user?.email || ''}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Email cannot be changed. Contact support if needed.
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* First Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="Enter your first name"
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    maxLength={50}
+                  />
+                </div>
+
+                {/* Last Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Enter your last name"
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    maxLength={50}
+                  />
+                </div>
+
+
+
+                {/* Save Button */}
+                <div className="flex justify-end pt-4">
+                  <Button
+                    type="submit"
+                    disabled={!isFormChanged() || isLoading}
+                    className="min-w-24"
+                  >
+                    {isLoading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Account & Roles Information */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Account & Roles Information
+              </CardTitle>
+              <CardDescription>
+                Your account details, roles, and club memberships
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Email */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Email Address</span>
+                  </div>
+                  <span className="text-sm font-medium">{user?.email || 'N/A'}</span>
+                </div>
+
+                <Separator />
+
+                {/* Roles */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Your Roles</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {isSuper() && (
+                      <Badge variant="outline" className="text-yellow-700 border-yellow-300">
+                        Super Admin
+                      </Badge>
+                    )}
+                    {memberships.map((membership, index) => (
+                      <Badge key={index} variant="outline">
+                        {getRoleDisplayName(membership.role)} - {membership.clubName}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Personal Information */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Personal Information</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Full Name</span>
+                      <p className="text-sm font-medium">
+                        {userProfile?.firstName && userProfile?.lastName
+                          ? `${userProfile.firstName} ${userProfile.lastName}`
+                          : 'Not set'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Sport</span>
+                      <p className="text-sm font-medium">{userProfile?.sport || 'Not set'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Club Memberships */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Club Memberships</span>
+                  </div>
+                  <div className="space-y-2">
+                    {memberships.map((membership, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium">{membership.clubName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {getRoleDisplayName(membership.role)}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          Active
+                        </Badge>
+                      </div>
+                    ))}
+                    {memberships.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No club memberships</p>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Account Details */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Account Details</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Account Created</span>
+                      <p className="text-sm">
+                        {user?.metadata?.creationTime ?
+                          new Date(user.metadata.creationTime).toLocaleDateString() :
+                          'Unknown'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Last Login</span>
+                      <p className="text-sm">
+                        {user?.metadata?.lastSignInTime ?
+                          new Date(user.metadata.lastSignInTime).toLocaleDateString() :
+                          'Unknown'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Settings;

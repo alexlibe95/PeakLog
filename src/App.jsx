@@ -6,6 +6,9 @@ import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import TrainingLogs from './pages/TrainingLogs';
+import Training from './pages/Training';
+import TrainingManagement from './pages/TrainingManagement';
+import Settings from './pages/Settings';
 import AdminPage from './pages/AdminPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 
@@ -28,21 +31,45 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/training-logs" 
+          <Route
+            path="/training-logs"
             element={
               <ProtectedRoute>
                 <TrainingLogs />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin" 
+          <Route
+            path="/training"
+            element={
+              <ProtectedRoute>
+                <Training />
+              </ProtectedRoute>
+            }
+          />
+                    <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/training-management"
             element={
               <ProtectedRoute adminOnly>
+                <TrainingManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute adminOnly superOnly>
                 <AdminPage />
               </ProtectedRoute>
-            } 
+            }
           />
           <Route 
             path="/super" 

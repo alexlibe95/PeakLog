@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import Navigation from '@/components/Navigation';
+import ClubSelector from '@/components/ClubSelector';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,16 +85,18 @@ const TrainingLogs = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold">📝 Training Logs</h1>
-              <p className="text-muted-foreground">
-                Track your training sessions and progress
-              </p>
-            </div>
+      <Navigation />
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {/* Header with Club Selector */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">📝 Training Logs</h1>
+            <p className="text-muted-foreground">
+              Track your training sessions and progress
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <ClubSelector role="athlete" />
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>Add Training Session</Button>
@@ -172,10 +176,7 @@ const TrainingLogs = () => {
             </Dialog>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
