@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getCountFromServer, getDocs, query, where } from 'firebase/firestore';
+import { collection, getCountFromServer, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { clubService } from '../services/clubService';
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,14 @@ const Dashboard = () => {
   const [loadingAthletes, setLoadingAthletes] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
 
+  // Athlete attendance statistics
+  const [athleteAttendanceStats, setAthleteAttendanceStats] = useState({
+    attendanceRate: 0,
+    sessionsCompleted: 0,
+    totalSessions: 0,
+    loading: true
+  });
+
   // Program details modal state
   const [selectedProgramDay, setSelectedProgramDay] = useState(null);
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
@@ -99,12 +107,7 @@ const Dashboard = () => {
   // Get upcoming training days based on weekly schedule
   const loadUpcomingTrainingDays = useCallback(async (clubId) => {
     try {
-      console.log('🔄 loadUpcomingTrainingDays called with clubId:', clubId);
-      console.log('👤 Current dashboard role:', dashboardRole);
-
       const upcomingDays = await clubService.getUpcomingTrainingDays(clubId, 7); // Get next 7 training days
-      console.log('📅 Upcoming days result:', upcomingDays);
-
       setUpcomingTrainingDays(upcomingDays);
 
       // Set the next training session from the first upcoming day
@@ -118,11 +121,6 @@ const Dashboard = () => {
 
         const daysUntil = Math.ceil((trainingDate - today) / (1000 * 60 * 60 * 24));
 
-        console.log('🔍 nextDay object:', nextDay);
-        console.log('🔍 nextDay.date:', nextDay.date);
-        console.log('🔍 nextDay.dateString:', nextDay.dateString);
-        console.log('🔍 nextDay.programId:', nextDay.programId);
-
         setNextTrainingSession({
           programName: nextDay.program?.name || 'Training Session',
           day: nextDay.dayName,
@@ -134,23 +132,7 @@ const Dashboard = () => {
           date: nextDay.date,
           dateString: nextDay.dateString
         });
-
-        console.log('✅ nextTrainingSession set with:', {
-          date: nextDay.date,
-          dateString: nextDay.dateString,
-          programId: nextDay.programId,
-          hasDate: !!nextDay.date,
-          hasDateString: !!nextDay.dateString,
-          hasProgramId: !!nextDay.programId
-        });
-
-        console.log('✅ Next training session set:', {
-          programName: nextDay.program?.name,
-          day: nextDay.dayName,
-          daysUntil
-        });
       } else {
-        console.log('⚠️ No upcoming training days found');
         setNextTrainingSession(null);
       }
     } catch (error) {
@@ -158,7 +140,7 @@ const Dashboard = () => {
       setNextTrainingSession(null);
       setUpcomingTrainingDays([]);
     }
-  }, [dashboardRole]);
+  }, []);
 
   // Handle dashboard view changes
   const handleRoleChange = (newRole) => {
@@ -182,40 +164,25 @@ const Dashboard = () => {
   // Synchronize dashboard view with AuthContext changes
   const isSuperUser = isSuper();
   useEffect(() => {
-    console.log('🔄 Dashboard sync triggered:', {
-      currentRole,
-      currentClubId,
-      selectedDashboardRole,
-      selectedDashboardClubId,
-      isSuper: isSuperUser,
-      membershipsCount: (memberships || []).length
-    });
-
     const availableRoles = getAvailableRoles();
     if (availableRoles.length > 0) {
       // Always synchronize with current AuthContext role when it changes
       const targetRole = isSuperUser ? 'super' : currentRole || availableRoles[0];
-      console.log('🎯 Setting dashboard role to:', targetRole);
       setSelectedDashboardRole(targetRole);
 
       if (targetRole !== 'super') {
         const clubsForRole = getAvailableClubsForRole(targetRole);
-        console.log('🏢 Available clubs for role:', clubsForRole);
         if (clubsForRole.length > 0) {
           // Check if current club is available for this role, otherwise use first available
           const currentClubAvailable = clubsForRole.some(club => club.id === currentClubId);
           const targetClubId = currentClubAvailable ? currentClubId : clubsForRole[0].id;
-          console.log('🏢 Setting dashboard club to:', targetClubId, '(current available:', currentClubAvailable, ')');
           setSelectedDashboardClubId(targetClubId);
         } else {
-          console.log('❌ No clubs available for role:', targetRole);
           setSelectedDashboardClubId('');
         }
       } else {
         setSelectedDashboardClubId('');
       }
-    } else {
-      console.log('❌ No available roles found');
     }
   }, [currentRole, currentClubId, memberships, isSuperUser, selectedDashboardRole, selectedDashboardClubId, getAvailableRoles, getAvailableClubsForRole]);
 
@@ -268,32 +235,95 @@ const Dashboard = () => {
     }
   }, [dashboardClubId]);
 
+  // Load athlete attendance statistics
+  const loadAthleteAttendanceStats = useCallback(async (clubId, athleteId) => {
+    try {
+      setAthleteAttendanceStats(prev => ({ ...prev, loading: true }));
+
+      // Get all training sessions for this club
+      const sessionsQuery = query(
+        collection(db, 'trainingSessions'),
+        where('clubId', '==', clubId),
+        orderBy('date', 'desc'),
+        limit(50) // Get last 50 sessions for stats
+      );
+      const sessionsSnap = await getDocs(sessionsQuery);
+
+      let presentCount = 0, lateCount = 0, absentCount = 0;
+      
+      // Calculate current month sessions
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      let currentMonthSessions = 0;
+
+      for (const sessionDoc of sessionsSnap.docs) {
+        const sessionData = sessionDoc.data();
+        const sessionDate = sessionData.date?.toDate ? sessionData.date.toDate() : new Date(sessionData.date);
+        
+        // Count sessions in current month
+        if (sessionDate >= currentMonthStart) {
+          currentMonthSessions++;
+        }
+
+        // Get attendance for this athlete in this session
+        const attendanceQuery = query(
+          collection(db, 'trainingSessions', sessionDoc.id, 'attendance'),
+          where('athleteId', '==', athleteId)
+        );
+        const attendanceSnap = await getDocs(attendanceQuery);
+
+        if (!attendanceSnap.empty) {
+          const attendance = attendanceSnap.docs[0].data();
+
+          // Count statistics
+          switch (attendance.status) {
+            case 'present':
+              presentCount++;
+              break;
+            case 'late':
+              lateCount++;
+              break;
+            case 'absent':
+              absentCount++;
+              break;
+          }
+        } else {
+          // If no attendance record found, assume absent for past sessions
+          if (sessionDate < now) {
+            absentCount++;
+          }
+        }
+      }
+
+      const totalMarkedSessions = presentCount + lateCount + absentCount;
+      const attendanceRate = totalMarkedSessions > 0 ? Math.round(((presentCount + lateCount) / totalMarkedSessions) * 100) : 0;
+
+      setAthleteAttendanceStats({
+        attendanceRate,
+        sessionsCompleted: presentCount + lateCount, // Present + Late count as completed
+        totalSessions: totalMarkedSessions,
+        currentMonthSessions,
+        loading: false
+      });
+
+    } catch (error) {
+      console.error('❌ Error loading athlete attendance stats:', error);
+      setAthleteAttendanceStats(prev => ({ ...prev, loading: false }));
+    }
+  }, []);
+
   // Main data loading effect - moved after function definitions to avoid hoisting issues
   useEffect(() => {
-    console.log('📊 Data loading triggered:', {
-      dashboardRole,
-      dashboardClubId,
-      currentRole,
-      currentClubId,
-      isSuper: isSuper(),
-      userProfileRole: userProfile?.role,
-      superAdminClaim: claims?.super_admin
-    });
-
     if (dashboardRole === 'super' || isSuper()) {
-      console.log('👑 Loading super admin stats');
       loadSuperStats();
     } else if (dashboardRole === 'admin' && dashboardClubId) {
-      console.log('⚡ Loading admin data for club:', dashboardClubId);
       loadClubStats();
       loadUpcomingTrainingDays(dashboardClubId); // Load training days for attendance management
     } else if (dashboardRole === 'athlete' && dashboardClubId) {
-      console.log('🏃 Loading athlete data for club:', dashboardClubId);
       loadUpcomingTrainingDays(dashboardClubId);
-    } else {
-      console.log('⏸️ No data loading - missing role or club');
+      loadAthleteAttendanceStats(dashboardClubId, user.uid);
     }
-  }, [currentClubId, currentRole, dashboardRole, dashboardClubId, userProfile?.role, claims?.super_admin, memberships, isSuper, loadClubStats, loadUpcomingTrainingDays, loadSuperStats]);
+  }, [currentClubId, currentRole, dashboardRole, dashboardClubId, userProfile?.role, claims?.super_admin, memberships, isSuper, loadClubStats, loadUpcomingTrainingDays, loadSuperStats, loadAthleteAttendanceStats, user.uid]);
 
   const getRoleDisplayName = (role) => {
     switch (role) {
@@ -747,9 +777,11 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">--</div>
+                  <div className="text-2xl font-bold">
+                    {athleteAttendanceStats.loading ? '--' : `${athleteAttendanceStats.attendanceRate}%`}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Loading from coach data
+                    {athleteAttendanceStats.loading ? 'Loading...' : `${athleteAttendanceStats.sessionsCompleted}/${athleteAttendanceStats.totalSessions} sessions`}
                   </p>
                 </CardContent>
               </Card>
@@ -761,9 +793,11 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">--</div>
+                  <div className="text-2xl font-bold">
+                    {athleteAttendanceStats.loading ? '--' : athleteAttendanceStats.currentMonthSessions}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    This month
+                    {athleteAttendanceStats.loading ? 'Loading...' : 'This month'}
                   </p>
                 </CardContent>
               </Card>
@@ -775,9 +809,17 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">--</div>
+                  <div className="text-2xl font-bold">
+                    {athleteAttendanceStats.loading ? '--' : 
+                      athleteAttendanceStats.attendanceRate >= 90 ? '⭐⭐⭐⭐⭐' :
+                      athleteAttendanceStats.attendanceRate >= 80 ? '⭐⭐⭐⭐' :
+                      athleteAttendanceStats.attendanceRate >= 70 ? '⭐⭐⭐' :
+                      athleteAttendanceStats.attendanceRate >= 60 ? '⭐⭐' :
+                      athleteAttendanceStats.attendanceRate >= 50 ? '⭐' : '☆'
+                    }
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Coach assessment
+                    {athleteAttendanceStats.loading ? 'Loading...' : 'Based on attendance'}
                   </p>
                 </CardContent>
               </Card>
@@ -945,22 +987,8 @@ const Dashboard = () => {
         )}
 
         {/* Admin Attendance Management */}
-        {(() => {
-          console.log('📊 Admin Attendance Management check:', {
-            dashboardRole,
-            dashboardClubId,
-            conditionResult: dashboardRole === 'admin' && dashboardClubId,
-            nextTrainingSession: !!nextTrainingSession
-          });
-          return dashboardRole === 'admin' && dashboardClubId;
-        })() && (
+        {dashboardRole === 'admin' && dashboardClubId && (
           <>
-            {console.log('📊 Admin Attendance Management rendering:', {
-              dashboardRole,
-              dashboardClubId,
-              nextTrainingSession,
-              dashboardMembership
-            })}
             <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -461,14 +461,10 @@ export const clubService = {
 
   async getUpcomingTrainingDays(clubId, limitCount = 14) {
     try {
-      console.log('🔍 getUpcomingTrainingDays called for clubId:', clubId);
-
       // Get the weekly schedule
       const weeklySchedule = await this.getWeeklySchedule(clubId);
-      console.log('📋 Weekly schedule loaded:', weeklySchedule);
 
       if (!weeklySchedule || !weeklySchedule.schedule) {
-        console.log('❌ No weekly schedule found or schedule is empty');
         return [];
       }
 
@@ -483,8 +479,6 @@ export const clubService = {
           ...dayData,
           dayIndex: this._getDayIndex(dayKey)
         }));
-
-      console.log('📅 Enabled days found:', enabledDays);
 
       // If no days are enabled, return empty array
       if (enabledDays.length === 0) {
@@ -543,7 +537,7 @@ export const clubService = {
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      console.log('📋 Generated', days.length, 'training days');
+
       return days;
     } catch (error) {
       console.error('❌ Error fetching upcoming training days:', error);

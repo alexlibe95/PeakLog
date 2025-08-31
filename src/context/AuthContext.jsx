@@ -46,17 +46,7 @@ export const AuthProvider = ({ children }) => {
 
         // Fetch user profile from Firestore
         try {
-          console.log('🔧 AuthContext Fetching user profile:', {
-            userId: firebaseUser.uid,
-            userEmail: firebaseUser.email,
-            authProvider: firebaseUser.providerData?.[0]?.providerId
-          });
           let userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
-          console.log('🔧 AuthContext User document check:', {
-            exists: userDocSnap.exists(),
-            documentId: userDocSnap.id,
-            userId: firebaseUser.uid
-          });
 
           if (!userDocSnap.exists()) {
             const defaultProfile = {
@@ -74,13 +64,6 @@ export const AuthProvider = ({ children }) => {
           }
 
           let profile = userDocSnap.data();
-          console.log('🔧 AuthContext User Profile Loaded:', {
-            userId: firebaseUser.uid,
-            email: firebaseUser.email,
-            profileRole: profile?.role,
-            profileEmail: profile?.email,
-            hasSuperRole: profile?.role === 'super'
-          });
           setUserProfile(profile);
 
           // Load user memberships
@@ -239,19 +222,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const switchRole = (clubId, role) => {
-    console.log('🔄 AuthContext switchRole called:', { clubId, role, previousClubId: currentClubId, previousRole: currentRole });
-
     // Handle super admin role switching (not club-based)
     if (role === 'super') {
       // Check if user has super admin permissions before allowing switch
       const hasSuperPermissions = userProfile?.role === 'super' || claims?.super_admin === true;
       if (hasSuperPermissions) {
-        console.log('✅ Switching to super admin role');
         setCurrentClubId(null);
         setCurrentRole('super');
         return true;
       } else {
-        console.log('❌ User does not have super admin permissions');
         return false;
       }
     }
@@ -259,12 +238,10 @@ export const AuthProvider = ({ children }) => {
     // Handle club-based roles (admin/athlete)
     const membership = memberships.find(m => m.clubId === clubId && m.role === role);
     if (membership) {
-      console.log('✅ Switching to membership:', membership);
       setCurrentClubId(clubId);
       setCurrentRole(role);
       return true;
     } else {
-      console.log('❌ Membership not found for:', { clubId, role });
       return false;
     }
   };
