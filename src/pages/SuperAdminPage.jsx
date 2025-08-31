@@ -351,6 +351,8 @@ function SuperAdminPage() {
           }}
         />
 
+
+
         {/* Club Management Section - Bottom of Page */}
         {isUserSuperAdmin && selectedClub && (
           <Card className="mt-6">

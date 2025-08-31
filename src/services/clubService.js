@@ -981,6 +981,237 @@ export const clubService = {
     }
   },
 
+  // Vacation/Cancellation Management
+  async saveTrainingCancellations(clubId, cancellations, userId) {
+    try {
+      const cancellationsRef = doc(db, 'clubs', clubId, 'settings', 'cancellations');
+      const data = {
+        clubId,
+        cancellations, // Array of { date: Date, reason: string, type: 'vacation' | 'maintenance' | 'other' }
+        updatedAt: new Date(),
+        updatedBy: userId
+      };
+
+      await setDoc(cancellationsRef, data);
+      console.log('✅ Training cancellations saved successfully');
+      return data;
+    } catch (error) {
+      console.error('❌ Error saving training cancellations:', error);
+      throw error;
+    }
+  },
+
+  async getTrainingCancellations(clubId) {
+    try {
+      const cancellationsRef = doc(db, 'clubs', clubId, 'settings', 'cancellations');
+      const cancellationsSnap = await getDoc(cancellationsRef);
+
+      if (cancellationsSnap.exists()) {
+        return cancellationsSnap.data();
+      } else {
+        return {
+          clubId,
+          cancellations: [],
+          updatedAt: null,
+          updatedBy: null
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error fetching training cancellations:', error);
+      throw error;
+    }
+  },
+
+  async addTrainingCancellation(clubId, cancellationData, userId) {
+    try {
+      const currentCancellations = await this.getTrainingCancellations(clubId);
+      const newCancellations = [...currentCancellations.cancellations, {
+        id: `cancellation_${Date.now()}`,
+        date: cancellationData.date,
+        reason: cancellationData.reason,
+        type: cancellationData.type || 'other',
+        createdAt: new Date(),
+        createdBy: userId
+      }];
+
+      return await this.saveTrainingCancellations(clubId, newCancellations, userId);
+    } catch (error) {
+      console.error('❌ Error adding training cancellation:', error);
+      throw error;
+    }
+  },
+
+  async removeTrainingCancellation(clubId, cancellationId, userId) {
+    try {
+      const currentCancellations = await this.getTrainingCancellations(clubId);
+      const filteredCancellations = currentCancellations.cancellations.filter(
+        c => c.id !== cancellationId
+      );
+
+      return await this.saveTrainingCancellations(clubId, filteredCancellations, userId);
+    } catch (error) {
+      console.error('❌ Error removing training cancellation:', error);
+      throw error;
+    }
+  },
+
+  // Enhanced attendance management for editing past sessions
+  async getTrainingSessionsInRange(clubId, startDate, endDate) {
+    try {
+      const sessionsQuery = query(
+        collection(db, 'trainingSessions'),
+        where('clubId', '==', clubId),
+        orderBy('date', 'asc')
+      );
+
+      const sessionsSnap = await getDocs(sessionsQuery);
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      const sessionsInRange = sessionsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(session => {
+          const sessionDate = session.date.toDate();
+          return sessionDate >= start && sessionDate <= end;
+        });
+
+      return sessionsInRange;
+    } catch (error) {
+      console.error('Error fetching training sessions in range:', error);
+      throw error;
+    }
+  },
+
+  async updateSessionAttendance(sessionId, attendanceUpdates, userId) {
+    try {
+      const batch = writeBatch(db);
+
+      attendanceUpdates.forEach(({ athleteId, status, notes = '' }) => {
+        const attendanceRef = doc(db, 'trainingSessions', sessionId, 'attendance', athleteId);
+        const data = {
+          athleteId,
+          sessionId,
+          status,
+          markedBy: userId,
+          markedAt: new Date(),
+          notes,
+          lastUpdated: new Date(),
+          updatedBy: userId
+        };
+        batch.set(attendanceRef, data, { merge: true });
+      });
+
+      await batch.commit();
+      console.log('✅ Session attendance updated successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Error updating session attendance:', error);
+      throw error;
+    }
+  },
+
+  // Calendar view helpers
+  async getMonthlyTrainingCalendar(clubId, year, month) {
+    try {
+      // Get the first day of the month and last day
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+      
+      // Get weekly schedule
+      const weeklySchedule = await this.getWeeklySchedule(clubId);
+      
+      // Get cancellations
+      const cancellations = await this.getTrainingCancellations(clubId);
+      
+      // Get actual training sessions
+      const sessions = await this.getTrainingSessionsInRange(clubId, startDate, endDate);
+      
+      // Build calendar data
+      const calendarData = [];
+      const currentDate = new Date(startDate);
+      
+      while (currentDate <= endDate) {
+        const dayOfWeek = this._getDayKeyFromIndex(currentDate.getDay());
+        const scheduleForDay = weeklySchedule.schedule?.[dayOfWeek];
+        
+        // Check if day is cancelled
+        const isCancelled = cancellations.cancellations?.some(c => {
+          let cancellationDate;
+          
+          // Handle Firestore Timestamp
+          if (c.date && c.date.toDate && typeof c.date.toDate === 'function') {
+            cancellationDate = c.date.toDate();
+          } 
+          // Handle regular Date object
+          else if (c.date instanceof Date) {
+            cancellationDate = c.date;
+          } 
+          // Handle date strings/numbers
+          else {
+            cancellationDate = new Date(c.date);
+          }
+          
+          // Only compare if we have a valid date
+          if (cancellationDate && !isNaN(cancellationDate.getTime())) {
+            return cancellationDate.toDateString() === currentDate.toDateString();
+          }
+          return false;
+        });
+        
+        // Find actual session for this date
+        const session = sessions.find(s => {
+          const sessionDate = s.date.toDate();
+          return sessionDate.toDateString() === currentDate.toDateString();
+        });
+        
+        calendarData.push({
+          date: new Date(currentDate),
+          dayOfWeek,
+          isScheduled: scheduleForDay?.enabled || false,
+          isCancelled,
+          session,
+          scheduleInfo: scheduleForDay,
+          cancellationInfo: isCancelled ? cancellations.cancellations.find(c => {
+            let cancellationDate;
+            
+            // Handle Firestore Timestamp
+            if (c.date && c.date.toDate && typeof c.date.toDate === 'function') {
+              cancellationDate = c.date.toDate();
+            } 
+            // Handle regular Date object
+            else if (c.date instanceof Date) {
+              cancellationDate = c.date;
+            } 
+            // Handle date strings/numbers
+            else {
+              cancellationDate = new Date(c.date);
+            }
+            
+            // Only compare if we have a valid date
+            if (cancellationDate && !isNaN(cancellationDate.getTime())) {
+              return cancellationDate.toDateString() === currentDate.toDateString();
+            }
+            return false;
+          }) : null
+        });
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      return calendarData;
+    } catch (error) {
+      console.error('❌ Error fetching monthly training calendar:', error);
+      throw error;
+    }
+  },
+
+  _getDayKeyFromIndex(dayIndex) {
+    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return dayKeys[dayIndex];
+  },
+
   // Pending Invitations Management
   async getPendingInvitations(clubId) {
     try {

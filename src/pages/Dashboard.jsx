@@ -22,7 +22,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Navigation from '../components/Navigation';
-import { Crown, Shield, Users, Target, Info } from 'lucide-react';
+import TrainingCalendar from '../components/TrainingCalendar';
+import VacationManager from '../components/VacationManager';
+import { Crown, Shield, Users, Target, Info, Clock } from 'lucide-react';
 import { useToast } from '@/components/ui/toast-context.jsx';
 
 const Dashboard = () => {
@@ -104,33 +106,109 @@ const Dashboard = () => {
     m.clubId === dashboardClubId && m.role === dashboardRole
   ) || getCurrentMembership();
 
+  // Helper function to determine training status
+  const getTrainingStatus = (day, currentTime) => {
+    if (!day || !day.startTime || !day.endTime) {
+      return 'upcoming';
+    }
+
+    const today = new Date();
+    const dayDate = day.date instanceof Date ? day.date : new Date(day.date);
+    
+    // Check if it's today
+    if (dayDate.toDateString() !== today.toDateString()) {
+      return dayDate < today ? 'completed' : 'upcoming';
+    }
+
+    // Parse training times for today
+    const [startHour, startMinute] = day.startTime.split(':').map(Number);
+    const [endHour, endMinute] = day.endTime.split(':').map(Number);
+    
+    const startTime = new Date(today);
+    startTime.setHours(startHour, startMinute, 0, 0);
+    
+    const endTime = new Date(today);
+    endTime.setHours(endHour, endMinute, 0, 0);
+
+    if (currentTime < startTime) {
+      return 'upcoming'; // Training hasn't started yet today
+    } else if (currentTime >= startTime && currentTime <= endTime) {
+      return 'in-progress'; // Training is happening now
+    } else {
+      return 'completed'; // Training has ended today
+    }
+  };
+
   // Get upcoming training days based on weekly schedule
   const loadUpcomingTrainingDays = useCallback(async (clubId) => {
     try {
-      const upcomingDays = await clubService.getUpcomingTrainingDays(clubId, 7); // Get next 7 training days
-      setUpcomingTrainingDays(upcomingDays);
+      const [upcomingDays, cancellations] = await Promise.all([
+        clubService.getUpcomingTrainingDays(clubId, 14), // Get more days to show cancelled ones too
+        clubService.getTrainingCancellations(clubId)
+      ]);
 
-      // Set the next training session from the first upcoming day
-      if (upcomingDays.length > 0) {
-        const nextDay = upcomingDays[0];
+      // Enhance upcoming days with cancellation and status information
+      const currentTime = new Date();
+      const enhancedDays = upcomingDays.map(day => {
+        const dayDate = day.date instanceof Date ? day.date : new Date(day.date);
+        
+        // Find if this day is cancelled
+        const cancellation = cancellations.cancellations?.find(c => {
+          let cancellationDate;
+          
+          // Handle Firestore Timestamp
+          if (c.date && c.date.toDate && typeof c.date.toDate === 'function') {
+            cancellationDate = c.date.toDate();
+          } 
+          // Handle regular Date object
+          else if (c.date instanceof Date) {
+            cancellationDate = c.date;
+          } 
+          // Handle date strings/numbers
+          else {
+            cancellationDate = new Date(c.date);
+          }
+          
+          return cancellationDate && !isNaN(cancellationDate.getTime()) && 
+                 cancellationDate.toDateString() === dayDate.toDateString();
+        });
+
+        // Determine training status
+        const status = getTrainingStatus(day, currentTime);
+
+        return {
+          ...day,
+          isCancelled: !!cancellation,
+          cancellationInfo: cancellation || null,
+          status: cancellation ? 'cancelled' : status
+        };
+      });
+
+      setUpcomingTrainingDays(enhancedDays);
+
+      // Set the next training session from the first NON-CANCELLED upcoming day
+      const nextActiveDay = enhancedDays.find(day => !day.isCancelled);
+      if (nextActiveDay) {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const trainingDate = nextDay.date && nextDay.date instanceof Date
-          ? new Date(nextDay.date.getFullYear(), nextDay.date.getMonth(), nextDay.date.getDate())
+        const trainingDate = nextActiveDay.date && nextActiveDay.date instanceof Date
+          ? new Date(nextActiveDay.date.getFullYear(), nextActiveDay.date.getMonth(), nextActiveDay.date.getDate())
           : new Date(); // fallback to today if date is invalid
 
         const daysUntil = Math.ceil((trainingDate - today) / (1000 * 60 * 60 * 24));
 
         setNextTrainingSession({
-          programName: nextDay.program?.name || 'Training Session',
-          day: nextDay.dayName,
-          startTime: nextDay.startTime,
-          endTime: nextDay.endTime,
+          programName: nextActiveDay.program?.name || 'Training Session',
+          day: nextActiveDay.dayName,
+          startTime: nextActiveDay.startTime,
+          endTime: nextActiveDay.endTime,
           daysUntil: daysUntil,
-          program: nextDay.program,
-          programId: nextDay.programId,
-          date: nextDay.date,
-          dateString: nextDay.dateString
+          program: nextActiveDay.program,
+          programId: nextActiveDay.programId,
+          date: nextActiveDay.date,
+          dateString: nextActiveDay.dateString,
+          isCancelled: false,
+          status: nextActiveDay.status
         });
       } else {
         setNextTrainingSession(null);
@@ -185,6 +263,25 @@ const Dashboard = () => {
       }
     }
   }, [currentRole, currentClubId, memberships, isSuperUser, selectedDashboardRole, selectedDashboardClubId, getAvailableRoles, getAvailableClubsForRole]);
+
+  // Refresh training status periodically
+  useEffect(() => {
+    let interval;
+    
+    if (dashboardClubId && dashboardRole === 'athlete') {
+      // Refresh every 2 minutes to update training status
+      interval = setInterval(() => {
+        console.log('Refreshing training status...');
+        loadUpcomingTrainingDays(dashboardClubId);
+      }, 2 * 60 * 1000); // 2 minutes
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [dashboardClubId, dashboardRole, loadUpcomingTrainingDays]);
 
   const loadSuperStats = useCallback(async () => {
     setStatsLoading(true);
@@ -826,14 +923,33 @@ const Dashboard = () => {
             </div>
 
             {/* Current/Next Training Day - Full Width Prominent Display */}
-            <Card className="mb-6 border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+            <Card className={`mb-6 border-2 ${
+              nextTrainingSession?.status === 'in-progress' 
+                ? 'border-green-400 bg-gradient-to-r from-green-50 to-green-100' 
+                : nextTrainingSession?.status === 'completed'
+                ? 'border-gray-400 bg-gradient-to-r from-gray-50 to-gray-100'
+                : 'border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10'
+            }`}>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="text-2xl">🏋️‍♂️</div>
-                  {nextTrainingSession?.daysUntil === 0 ? 'Today\'s Training' : 'Next Training Session'}
+                  <div className="text-2xl">
+                    {nextTrainingSession?.status === 'in-progress' ? '🔥' :
+                     nextTrainingSession?.status === 'completed' ? '✅' : '🏋️‍♂️'}
+                  </div>
+                  {nextTrainingSession?.daysUntil === 0 ? (
+                    nextTrainingSession?.status === 'in-progress' ? 'Training In Progress' :
+                    nextTrainingSession?.status === 'completed' ? 'Today\'s Training Completed' :
+                    'Today\'s Training'
+                  ) : 'Next Training Session'}
                 </CardTitle>
                 <CardDescription className="text-base">
                   {dashboardMembership?.clubName || 'Your Club'}
+                  {nextTrainingSession?.status === 'in-progress' && (
+                    <span className="ml-2 text-green-600 font-medium">• LIVE NOW</span>
+                  )}
+                  {nextTrainingSession?.status === 'completed' && (
+                    <span className="ml-2 text-gray-600 font-medium">• COMPLETED</span>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -857,14 +973,19 @@ const Dashboard = () => {
                           </div>
                         </div>
                         <div className="text-center">
-                          <div className="text-sm text-muted-foreground">When</div>
-                          <div className="font-semibold text-lg">
-                            {nextTrainingSession.daysUntil === 0
-                              ? 'Today'
-                              : nextTrainingSession.daysUntil === 1
-                                ? 'Tomorrow'
-                                : `In ${nextTrainingSession.daysUntil} days`
-                            }
+                          <div className="text-sm text-muted-foreground">Status</div>
+                          <div className={`font-semibold text-lg ${
+                            nextTrainingSession.status === 'in-progress' ? 'text-green-600' :
+                            nextTrainingSession.status === 'completed' ? 'text-gray-600' :
+                            'text-primary'
+                          }`}>
+                            {nextTrainingSession.daysUntil === 0 ? (
+                              nextTrainingSession.status === 'in-progress' ? '🔥 In Progress' :
+                              nextTrainingSession.status === 'completed' ? '✅ Completed' :
+                              '⏰ Today'
+                            ) : (
+                              nextTrainingSession.daysUntil === 1 ? 'Tomorrow' : `In ${nextTrainingSession.daysUntil} days`
+                            )}
                           </div>
                         </div>
                       </div>
@@ -926,23 +1047,29 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {upcomingTrainingDays.slice(0, 7).map((day, index) => (
+                      {upcomingTrainingDays.slice(0, 10).map((day, index) => (
                         <div
                           key={day.id}
-                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-md ${
-                            index === 0
-                              ? 'bg-primary/5 border-primary/20 hover:bg-primary/10'
-                              : 'bg-muted/30 hover:bg-muted/50'
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
+                            day.isCancelled
+                              ? 'bg-red-50 border-red-200 opacity-75'
+                              : day.status === 'in-progress'
+                              ? 'bg-green-50 border-green-200 ring-2 ring-green-400'
+                              : day.status === 'completed'
+                              ? 'bg-gray-50 border-gray-200 opacity-90'
+                              : index === 0 && !day.isCancelled
+                              ? 'bg-primary/5 border-primary/20 hover:bg-primary/10 cursor-pointer hover:shadow-md'
+                              : 'bg-muted/30 hover:bg-muted/50 cursor-pointer hover:shadow-md'
                           }`}
-                          onClick={() => openProgramModal(day)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
+                          onClick={!day.isCancelled ? () => openProgramModal(day) : undefined}
+                          role={!day.isCancelled ? "button" : undefined}
+                          tabIndex={!day.isCancelled ? 0 : undefined}
+                          onKeyDown={!day.isCancelled ? (e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
                               openProgramModal(day);
                             }
-                          }}
+                          } : undefined}
                         >
                           <div className="text-center min-w-[60px]">
                             <div className="text-xs font-medium text-muted-foreground">
@@ -954,24 +1081,69 @@ const Dashboard = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <Target className="w-3 h-3 text-primary flex-shrink-0" />
-                              <span className="font-medium text-sm truncate">
+                              {day.isCancelled ? (
+                                <span className="text-red-500 text-sm">❌</span>
+                              ) : (
+                                <Target className="w-3 h-3 text-primary flex-shrink-0" />
+                              )}
+                              <span className={`font-medium text-sm truncate ${
+                                day.isCancelled ? 'text-red-600 line-through' : ''
+                              }`}>
                                 {day.program?.name || 'Training Session'}
                               </span>
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {formatTime(day.startTime)} - {formatTime(day.endTime)}
+                            <div className={`text-xs mt-1 ${
+                              day.isCancelled ? 'text-red-500' : 'text-muted-foreground'
+                            }`}>
+                              {day.isCancelled ? (
+                                <div>
+                                  <div className="font-medium">🚫 CANCELLED</div>
+                                  {day.cancellationInfo && (
+                                    <div className="mt-1">
+                                      <div className="font-medium">
+                                        {day.cancellationInfo.type === 'vacation' && '🏖️ Vacation'}
+                                        {day.cancellationInfo.type === 'maintenance' && '🔧 Maintenance'}
+                                        {day.cancellationInfo.type === 'weather' && '🌦️ Weather'}
+                                        {day.cancellationInfo.type === 'other' && '📅 Other'}
+                                      </div>
+                                      <div className="text-xs italic">
+                                        {day.cancellationInfo.reason}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <>
+                                  {formatTime(day.startTime)} - {formatTime(day.endTime)}
+                                  {day.program?.description && (
+                                    <div className="text-xs text-muted-foreground truncate mt-1">
+                                      {day.program.description}
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </div>
-                            {day.program?.description && (
-                              <div className="text-xs text-muted-foreground truncate">
-                                {day.program.description}
-                              </div>
-                            )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <Info className="w-3 h-3 text-muted-foreground hover:text-primary transition-colors" />
-                            <Badge variant={index === 0 ? "default" : "secondary"} className="text-xs">
-                              {index === 0 ? 'Next' : `+${index + 1} days`}
+                            {!day.isCancelled && (
+                              <Info className="w-3 h-3 text-muted-foreground hover:text-primary transition-colors" />
+                            )}
+                            <Badge 
+                              variant={
+                                day.isCancelled ? "destructive" : 
+                                day.status === 'in-progress' ? "default" :
+                                day.status === 'completed' ? "secondary" :
+                                index === 0 && !day.isCancelled ? "default" : "secondary"
+                              } 
+                              className={`text-xs ${
+                                day.status === 'in-progress' ? 'bg-green-600 text-white animate-pulse' :
+                                day.status === 'completed' ? 'bg-gray-500 text-white' : ''
+                              }`}
+                            >
+                              {day.isCancelled ? 'Cancelled' :
+                               day.status === 'in-progress' ? '🔥 Live' :
+                               day.status === 'completed' ? '✅ Done' :
+                               index === 0 ? 'Next' : `+${index + 1} days`}
                             </Badge>
                           </div>
                         </div>
@@ -993,10 +1165,10 @@ const Dashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <span className="text-lg">📊</span>
-                Attendance Management
+                Quick Attendance
               </CardTitle>
               <CardDescription>
-                Mark attendance for training sessions at {dashboardMembership?.clubName}
+                Mark attendance for today's training session at {dashboardMembership?.clubName}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1016,8 +1188,9 @@ const Dashboard = () => {
                     <Button
                       onClick={() => openAttendanceDialog(nextTrainingSession)}
                       className="bg-primary hover:bg-primary/90"
+                      disabled={nextTrainingSession.daysUntil !== 0}
                     >
-                      Mark Attendance
+                      {nextTrainingSession.daysUntil === 0 ? 'Mark Attendance' : 'Not Today'}
                     </Button>
                   </div>
 
@@ -1033,6 +1206,18 @@ const Dashboard = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Training Calendar - for managing schedule and past attendance */}
+          <TrainingCalendar 
+            clubId={dashboardClubId}
+            clubName={dashboardMembership?.clubName}
+          />
+
+          {/* Vacation Manager - for scheduling cancellations */}
+          <VacationManager 
+            clubId={dashboardClubId}
+            clubName={dashboardMembership?.clubName}
+          />
           </>
         )}
 

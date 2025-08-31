@@ -40,6 +40,60 @@ service cloud.firestore {
       allow read, write: if request.auth != null && 
         isAdmin();
     }
+
+    // Club-specific rules
+    match /clubs/{clubId} {
+      // Club documents - admins can read/write clubs they belong to
+      allow read: if isSignedIn();
+      allow write: if isSuper();
+      
+      // Club members - admins of the club can manage
+      match /members/{memberId} {
+        allow read, write: if isAdmin();
+      }
+      
+      // Club settings (weekly schedule, cancellations) - admins can manage
+      match /settings/{settingId} {
+        allow read, write: if isAdmin();
+      }
+      
+      // Training programs - admins can manage
+      match /programs/{programId} {
+        allow read, write: if isAdmin();
+      }
+      
+      // Training sessions - admins can manage
+      match /sessions/{sessionId} {
+        allow read, write: if isAdmin();
+        
+        // Session attendance - admins can manage
+        match /attendance/{attendanceId} {
+          allow read, write: if isAdmin();
+        }
+      }
+      
+      // Pending assignments - admins can manage
+      match /pendingAssignments/{assignmentId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // Training programs - global collection for all clubs
+    match /trainingPrograms/{programId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Training sessions - global collection for all clubs  
+    match /trainingSessions/{sessionId} {
+      allow read, write: if isAdmin();
+      
+      // Session attendance - nested under sessions
+      match /attendance/{attendanceId} {
+        allow read, write: if isAdmin();
+        // Athletes can read their own attendance
+        allow read: if isSignedIn() && request.auth.uid == resource.data.athleteId;
+      }
+    }
     
     // Goals - users can CRUD their own, admins can read all
     match /goals/{goalId} {
