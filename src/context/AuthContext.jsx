@@ -6,7 +6,10 @@ import {
   signOut,
   sendSignInLinkToEmail,
   signInWithEmailLink,
-  isSignInWithEmailLink
+  isSignInWithEmailLink,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, collectionGroup, getDocs, query, where, updateDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
@@ -176,6 +179,36 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     return signOut(auth);
+  };
+
+  const changePassword = async (currentPassword, newPassword) => {
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      // Re-authenticate user with current password
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+
+      // Update password
+      await updatePassword(user, newPassword);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error changing password:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === 'auth/wrong-password') {
+        throw new Error('Current password is incorrect');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('New password is too weak. Please choose a stronger password.');
+      } else if (error.code === 'auth/requires-recent-login') {
+        throw new Error('Please log out and log back in before changing your password');
+      } else {
+        throw new Error('Failed to change password. Please try again.');
+      }
+    }
   };
 
   const isSuper = () => {
@@ -373,6 +406,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    changePassword,
     isSuper: isSuper || (() => false),
     isAdmin: isAdmin || (() => false),
     isAthlete: isAthlete || (() => false),
