@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/select';
 
 const TrainingManagement = () => {
-  const { user, userProfile, currentClubId, memberships, getCurrentMembership } = useAuth();
+  const { user, userProfile, currentClubId, getCurrentMembership } = useAuth();
   const { toast } = useToast();
 
   const [programs, setPrograms] = useState([]);
@@ -89,77 +89,9 @@ const TrainingManagement = () => {
     { key: 'sunday', label: 'Sunday', short: 'Sun' }
   ];
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      console.log('📊 TrainingManagement: Starting data load for club:', currentClubId);
-
-      // Load both programs and weekly schedule in parallel
-      const [programsData, savedSchedule] = await Promise.all([
-        clubService.getTrainingPrograms(currentClubId),
-        clubService.getWeeklySchedule(currentClubId)
-      ]);
-
-      console.log('📚 TrainingManagement: Loaded programs:', programsData.length);
-      console.log('📋 TrainingManagement: Loaded schedule:', JSON.stringify(savedSchedule, null, 2));
-      console.log('🔍 Debug: Club ID being used:', currentClubId);
-      console.log('🔍 Debug: Programs data:', programsData);
-
-      // Set programs first
-      setPrograms(programsData);
-
-      // Set weekly schedule
-      if (savedSchedule && savedSchedule.schedule) {
-        console.log('✅ TrainingManagement: Setting weekly schedule:', JSON.stringify(savedSchedule.schedule, null, 2));
-        setWeeklySchedule(savedSchedule.schedule);
-      } else {
-        console.log('⚠️ TrainingManagement: No weekly schedule found, using defaults');
-        // Keep default empty schedule
-      }
-
-      // Generate training days after data is loaded
-      setTimeout(() => {
-        console.log('🔄 TrainingManagement: Generating days after data load');
-        generateUpcomingDays();
-      }, 100);
-    } catch (error) {
-      console.error('❌ TrainingManagement: Error loading training data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load training data.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      console.log('🏁 TrainingManagement: Data load complete');
-    }
-  }, [currentClubId, toast]);
-
-  useEffect(() => {
-    console.log('🏋️ TrainingManagement: useEffect triggered', {
-      currentClubId,
-      userProfile,
-      memberships: memberships.length,
-      currentMembership: getCurrentMembership()
-    });
-
-    if (currentClubId) {
-      console.log('✅ TrainingManagement: Loading data for club:', currentClubId);
-      loadData();
-    } else {
-      console.log('❌ TrainingManagement: No currentClubId available');
-    }
-  }, [currentClubId, getCurrentMembership, loadData, memberships.length, userProfile]);
-
   const generateUpcomingDays = useCallback(() => {
-    console.log('🔄 generateUpcomingDays: Starting generation');
-    console.log('📊 Programs loaded:', programs.length);
-    console.log('📅 Current weeklySchedule:', JSON.stringify(weeklySchedule, null, 2));
-    console.log('📅 Weekly schedule keys:', Object.keys(weeklySchedule || {}));
-
     // Don't generate if no club is selected
     if (!currentClubId) {
-      console.log('❌ generateUpcomingDays: No club selected');
       return;
     }
 
@@ -175,20 +107,10 @@ const TrainingManagement = () => {
         dayIndex: getDayIndex(dayKey)
       }));
 
-    console.log('📅 Enabled days from schedule:', enabledDays.length, 'days found');
-    console.log('📊 Weekly schedule entries:', Object.entries(weeklySchedule || {}));
-    console.log('📅 Detailed enabled days:', enabledDays);
 
-    // Debug: Show each day's enabled status
-    console.log('🔍 Day by day check:');
-    Object.entries(weeklySchedule || {}).forEach(([dayKey, dayData]) => {
-      console.log(`  ${dayKey}: enabled=${dayData?.enabled}, programId=${dayData?.programId}`);
-    });
 
     // If no days are enabled, show next 4 days as default
     if (enabledDays.length === 0) {
-      console.log('⚠️ No enabled days in schedule, showing default days');
-      console.log('📅 Current weeklySchedule state:', JSON.stringify(weeklySchedule, null, 2));
       for (let i = 0; i < 4; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
@@ -201,7 +123,6 @@ const TrainingManagement = () => {
           programs: [],
           isDefault: true // Mark as default when no schedule is set
         };
-        console.log('📅 Adding default day:', defaultDay.dayName, defaultDay.dateString);
         days.push(defaultDay);
       }
     } else {
@@ -211,31 +132,23 @@ const TrainingManagement = () => {
 
       while (daysFound < 4) {
         const currentDayIndex = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-        const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
-
-        console.log(`🔄 Checking ${dayName} (index ${currentDayIndex})`);
 
         // Check if current day matches any enabled day
         const matchingDay = enabledDays.find(day => day.dayIndex === currentDayIndex);
 
         if (matchingDay) {
-          console.log(`✅ Found matching day: ${matchingDay.dayKey}`);
           const defaultProgramId = matchingDay.programId !== 'none' ? matchingDay.programId : null;
           const defaultPrograms = [];
 
           // Auto-assign default program if set
           if (defaultProgramId) {
-            console.log('🔍 Looking for program with ID:', defaultProgramId);
             const defaultProgram = programs.find(p => p.id === defaultProgramId);
             if (defaultProgram) {
-              console.log('✅ Found default program:', defaultProgram.name);
               defaultPrograms.push({
                 ...defaultProgram,
                 assignedAt: new Date(),
                 isDefault: true
               });
-            } else {
-              console.log('❌ Default program not found:', defaultProgramId);
             }
           }
 
@@ -247,10 +160,8 @@ const TrainingManagement = () => {
             programs: defaultPrograms,
             defaultProgramId: defaultProgramId
           };
-          console.log('✅ Adding scheduled day:', newDay.dayName, newDay.dateString, `with ${defaultPrograms.length} programs`);
           days.push(newDay);
           daysFound++;
-          console.log(`📊 Days found so far: ${daysFound}/4`);
         }
 
         // Move to next day
@@ -258,34 +169,8 @@ const TrainingManagement = () => {
       }
     }
 
-    console.log('📋 Generated upcoming days:', days.length, 'days');
-    console.log('📅 Days details:', days.map(day => ({
-      id: day.id,
-      dayName: day.dayName,
-      dateString: day.dateString,
-      programsCount: day.programs.length,
-      programs: day.programs.map(p => p.name).join(', ') || 'No programs'
-    })));
     setUpcomingDays(days);
-    console.log('✅ Set upcomingDays state with', days.length, 'days');
-  }, [programs, weeklySchedule, setUpcomingDays, currentClubId]);
-
-  // Generate upcoming days when data is loaded
-  useEffect(() => {
-    console.log('🔄 TrainingManagement: Data useEffect triggered', {
-      currentClubId,
-      programsCount: programs.length,
-      weeklyScheduleKeys: Object.keys(weeklySchedule || {}),
-      enabledDaysCount: Object.entries(weeklySchedule || {}).filter(([,day]) => day?.enabled).length
-    });
-
-    if (currentClubId) {
-      console.log('🔄 useEffect: Club available, generating upcoming days');
-      generateUpcomingDays();
-    } else {
-      console.log('❌ useEffect: No currentClubId available');
-    }
-  }, [currentClubId, generateUpcomingDays, weeklySchedule]);
+  }, [programs, weeklySchedule, currentClubId]);
 
   const getDayIndex = (dayKey) => {
     const dayMap = {
@@ -299,6 +184,49 @@ const TrainingManagement = () => {
     };
     return dayMap[dayKey];
   };
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Load both programs and weekly schedule in parallel
+      const [programsData, savedSchedule] = await Promise.all([
+        clubService.getTrainingPrograms(currentClubId),
+        clubService.getWeeklySchedule(currentClubId)
+      ]);
+
+      // Set programs first
+      setPrograms(programsData);
+
+      // Set weekly schedule
+      if (savedSchedule && savedSchedule.schedule) {
+        setWeeklySchedule(savedSchedule.schedule);
+      }
+
+      // Note: upcoming days will be generated by the useEffect that watches for data changes
+    } catch (error) {
+      console.error('❌ TrainingManagement: Error loading training data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load training data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentClubId, toast]);
+
+  useEffect(() => {
+    if (currentClubId && userProfile) {
+      loadData();
+    }
+  }, [currentClubId, userProfile, loadData]);
+
+  // Generate upcoming days when data is loaded
+  useEffect(() => {
+    if (currentClubId && !loading && (programs.length > 0 || Object.keys(weeklySchedule).length > 0)) {
+      generateUpcomingDays();
+    }
+  }, [currentClubId, generateUpcomingDays, weeklySchedule, programs.length, loading]);
 
   const handleCreateProgram = async (e) => {
     e.preventDefault();
@@ -353,27 +281,18 @@ const TrainingManagement = () => {
 
   const handleScheduleSubmit = async () => {
     try {
-      console.log('💾 Saving weekly schedule:', weeklySchedule);
-
       // Save the schedule to the database
       await clubService.saveWeeklySchedule(currentClubId, weeklySchedule, user.uid);
-
-      console.log('✅ Schedule saved successfully');
 
       // Reload the schedule from database to ensure we have the latest data
       const savedSchedule = await clubService.getWeeklySchedule(currentClubId);
       if (savedSchedule && savedSchedule.schedule) {
-        console.log('🔄 Setting updated schedule from database:', savedSchedule.schedule);
         setWeeklySchedule(savedSchedule.schedule);
       }
 
       setShowWeeklySchedule(false);
 
-      // Force regenerate days with a small delay to ensure state is updated
-      setTimeout(() => {
-        console.log('🔄 Regenerating upcoming days after schedule save');
-        generateUpcomingDays();
-      }, 100);
+      // Note: upcoming days will be regenerated by the useEffect that watches weeklySchedule changes
 
       toast({
         title: "Schedule Saved",
@@ -520,36 +439,38 @@ const TrainingManagement = () => {
       <Navigation />
 
       {/* Page Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Training Management</h1>
-              <p className="text-muted-foreground">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold truncate">Training Management</h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1">
                 Manage training programs and sessions for {currentClubName}
               </p>
             </div>
-            <ClubSelector role="admin" />
+            <div className="flex-shrink-0">
+              <ClubSelector role="admin" />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="space-y-8">
+      <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+        <div className="space-y-6 sm:space-y-8">
           {/* Header with Action Buttons */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Training Management</h2>
-              <p className="text-muted-foreground">Set your weekly schedule and assign training programs</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold">Training Management</h2>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1">Set your weekly schedule and assign training programs</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <>
               <Dialog open={showCreateProgram} onOpenChange={setShowCreateProgram}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full sm:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
-                    Create Program
+                    <span className="sm:inline">Create Program</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -822,53 +743,58 @@ const TrainingManagement = () => {
 
               <Dialog open={showWeeklySchedule} onOpenChange={setShowWeeklySchedule}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="w-full sm:w-auto">
                     <Settings className="w-4 h-4 mr-2" />
-                    Set Weekly Schedule
+                    <span className="sm:inline">Set Weekly Schedule</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Weekly Training Schedule</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-lg sm:text-xl">Weekly Training Schedule</DialogTitle>
+                    <DialogDescription className="text-sm">
                       Select which days you want to train and set default programs for {currentClubName}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-3">
-                    {daysOfWeek.map(({ key, label }) => (
-                      <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg">
-                        <div className="flex items-center space-x-2 sm:min-w-[100px]">
+                  <div className="space-y-3 py-2">
+                    {daysOfWeek.map(({ key, label, short }) => (
+                      <div key={key} className="flex flex-col gap-3 p-3 border rounded-lg">
+                        <div className="flex items-center space-x-2">
                           <Checkbox
                             id={key}
                             checked={weeklySchedule[key].enabled}
                             onCheckedChange={(checked) => handleScheduleChange(key, 'enabled', checked)}
                           />
-                          <Label htmlFor={key} className="font-medium cursor-pointer text-sm">
-                            {label}
+                          <Label htmlFor={key} className="font-medium cursor-pointer text-sm flex-1">
+                            <span className="sm:hidden">{short}</span>
+                            <span className="hidden sm:inline">{label}</span>
                           </Label>
                         </div>
 
                         {weeklySchedule[key].enabled && (
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+                          <div className="flex flex-col gap-3 ml-6">
                             {/* Time Inputs */}
-                            <div className="flex items-center space-x-2">
-                              <Input
-                                type="time"
-                                value={weeklySchedule[key].startTime}
-                                onChange={(e) => handleScheduleChange(key, 'startTime', e.target.value)}
-                                className="w-20 text-xs"
-                              />
-                              <span className="text-xs text-muted-foreground">to</span>
-                              <Input
-                                type="time"
-                                value={weeklySchedule[key].endTime}
-                                onChange={(e) => handleScheduleChange(key, 'endTime', e.target.value)}
-                                className="w-20 text-xs"
-                              />
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <label className="text-xs text-muted-foreground min-w-0">Time:</label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="time"
+                                  value={weeklySchedule[key].startTime}
+                                  onChange={(e) => handleScheduleChange(key, 'startTime', e.target.value)}
+                                  className="w-[100px] text-xs"
+                                />
+                                <span className="text-xs text-muted-foreground">to</span>
+                                <Input
+                                  type="time"
+                                  value={weeklySchedule[key].endTime}
+                                  onChange={(e) => handleScheduleChange(key, 'endTime', e.target.value)}
+                                  className="w-[100px] text-xs"
+                                />
+                              </div>
                             </div>
 
                             {/* Program Selection */}
-                            <div className="sm:min-w-[180px] w-full sm:w-auto">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs text-muted-foreground">Default Program:</label>
                               <Select
                                 value={weeklySchedule[key].programId || 'none'}
                                 onValueChange={(programId) => handleScheduleChange(key, 'programId', programId === 'none' ? '' : programId)}
@@ -947,9 +873,7 @@ const TrainingManagement = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            console.log('🔍 Debug: Full weeklySchedule:', JSON.stringify(weeklySchedule, null, 2));
-                            console.log('🔍 Debug: Programs:', programs);
-                            console.log('🔍 Debug: Current club:', currentClubId);
+
                           }}
                         >
                           📊 Debug Log
@@ -959,43 +883,41 @@ const TrainingManagement = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {upcomingDays.map((day) => (
-                      <div key={day.id} className="border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
+                      <div key={day.id} className="border rounded-lg p-3 sm:p-4 bg-card hover:shadow-md transition-shadow">
                         <div className="text-center mb-3">
-                          <h3 className="text-lg font-semibold">{day.dayName}</h3>
-                          <p className="text-sm text-muted-foreground font-medium">
+                          <h3 className="text-base sm:text-lg font-semibold">{day.dayName}</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                             {day.dateString}
                           </p>
                         </div>
-                        <div className="flex justify-center mb-3">
-                          <Badge variant={day.isDefault ? "secondary" : "default"}>
+                        <div className="flex justify-center mb-3 gap-2 flex-wrap">
+                          <Badge variant={day.isDefault ? "secondary" : "default"} className="text-xs">
                             {day.programs.length} programs
                           </Badge>
-                        </div>
-                        {day.isDefault && (
-                          <div className="flex justify-center mb-3">
+                          {day.isDefault && (
                             <Badge variant="outline" className="text-xs">
                               Default
                             </Badge>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <div className="space-y-2">
                           {day.programs.length > 0 ? (
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               <p className="text-xs font-medium text-muted-foreground">Programs:</p>
                               <div className="flex flex-wrap gap-1">
                                 {day.programs.map((program) => (
                                   <div key={program.id} className="relative group">
-                                    <Badge variant="outline" className="text-xs px-2 py-1">
-                                      {program.name}
+                                    <Badge variant="outline" className="text-xs px-2 py-1 max-w-full truncate" title={program.name}>
+                                      {program.name.length > 12 ? `${program.name.substring(0, 12)}...` : program.name}
                                     </Badge>
                                   </div>
                                 ))}
                               </div>
                             </div>
                           ) : (
-                            <p className="text-xs text-muted-foreground text-center">
+                            <p className="text-xs text-muted-foreground text-center py-2">
                               No programs
                             </p>
                           )}
@@ -1029,19 +951,19 @@ const TrainingManagement = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {programs.map((program) => (
-                    <div key={program.id} className="p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div key={program.id} className="p-3 sm:p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold flex-1">{program.name}</h4>
-                        <div className="flex gap-1 ml-2">
+                        <h4 className="font-semibold flex-1 text-sm sm:text-base pr-2 line-clamp-2">{program.name}</h4>
+                        <div className="flex gap-1 flex-shrink-0">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => openEditProgram(program)}
                             className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1049,16 +971,16 @@ const TrainingManagement = () => {
                             onClick={() => handleDeleteProgram(program.id)}
                             className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{program.description}</p>
-                      <div className="flex items-center justify-between">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-3">{program.description}</p>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <Badge variant="outline" className="text-xs">
                           {program.difficulty ? program.difficulty.charAt(0).toUpperCase() + program.difficulty.slice(1) : 'Beginner'}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={program.duration || 'Flexible'}>
                           {program.duration || 'Flexible'}
                         </span>
                       </div>
@@ -1129,24 +1051,24 @@ const AddProgramsDialog = ({ dayId, allPrograms, currentlyAssignedPrograms, onAs
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
-          <Plus className="w-4 h-4 mr-2" />
-          Manage Programs
-          <Badge variant="secondary" className="ml-2 text-xs">
+        <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm">
+          <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+          <span className="hidden xs:inline">Manage </span>Programs
+          <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
             {assignedCount}
           </Badge>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[95vw] max-w-md max-h-[85vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Manage Training Programs</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg">Manage Training Programs</DialogTitle>
+          <DialogDescription className="text-sm">
             Select the training programs you want to assign to this day. Currently assigned programs are pre-selected.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 py-4 max-h-80 overflow-y-auto">
+        <div className="space-y-2 py-2 max-h-[50vh] overflow-y-auto">
           {allPrograms.map((program) => (
-            <div key={program.id} className={`flex items-start space-x-3 p-4 rounded-lg border transition-all duration-200 ${
+            <div key={program.id} className={`flex items-start space-x-2 sm:space-x-3 p-3 rounded-lg border transition-all duration-200 ${
               selectedPrograms.includes(program.id)
                 ? 'border-primary bg-primary/5 shadow-sm'
                 : 'border-border hover:bg-muted/50 hover:border-primary/20'
@@ -1155,59 +1077,70 @@ const AddProgramsDialog = ({ dayId, allPrograms, currentlyAssignedPrograms, onAs
                 id={`program-${program.id}`}
                 checked={selectedPrograms.includes(program.id)}
                 onCheckedChange={() => handleProgramToggle(program.id)}
-                className="mt-0.5"
+                className="mt-0.5 flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <label
                   htmlFor={`program-${program.id}`}
-                  className="text-sm font-medium cursor-pointer flex items-center gap-2 group"
+                  className="text-sm font-medium cursor-pointer flex items-start flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 group"
                 >
-                  <Target className={`w-4 h-4 transition-colors ${
-                    selectedPrograms.includes(program.id) ? 'text-primary' : 'text-muted-foreground'
-                  }`} />
-                  <span className={selectedPrograms.includes(program.id) ? 'text-primary' : ''}>
-                    {program.name}
-                  </span>
-                  {program.difficulty && (
-                    <Badge variant="outline" className="text-xs ml-2">
-                      {program.difficulty.charAt(0).toUpperCase() + program.difficulty.slice(1)}
-                    </Badge>
-                  )}
-                  {currentlyAssignedPrograms.some(p => p.id === program.id) && (
-                    <Badge variant="secondary" className="text-xs ml-2">
-                      Assigned
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Target className={`w-3 h-3 sm:w-4 sm:h-4 transition-colors flex-shrink-0 ${
+                      selectedPrograms.includes(program.id) ? 'text-primary' : 'text-muted-foreground'
+                    }`} />
+                    <span className={`truncate ${selectedPrograms.includes(program.id) ? 'text-primary' : ''}`}>
+                      {program.name}
+                    </span>
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {program.difficulty && (
+                      <Badge variant="outline" className="text-xs">
+                        {program.difficulty.charAt(0).toUpperCase() + program.difficulty.slice(1)}
+                      </Badge>
+                    )}
+                    {currentlyAssignedPrograms.some(p => p.id === program.id) && (
+                      <Badge variant="secondary" className="text-xs">
+                        Assigned
+                      </Badge>
+                    )}
+                  </div>
                 </label>
                 {program.description && (
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
                     {program.description}
                   </p>
                 )}
-                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-2 text-xs text-muted-foreground">
                   {program.duration && (
-                    <span>Duration: {program.duration}</span>
+                    <span className="truncate">Duration: {program.duration}</span>
                   )}
                   {program.targetSkills && (
-                    <span>Skills: {program.targetSkills}</span>
+                    <span className="truncate">Skills: {program.targetSkills}</span>
                   )}
                 </div>
               </div>
             </div>
           ))}
         </div>
-        <DialogFooter>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}
+            className="w-full sm:w-auto"
           >
             Cancel
           </Button>
           <Button
             onClick={handleUpdatePrograms}
             disabled={selectedCount === assignedCount}
+            className="w-full sm:w-auto"
           >
-            {selectedCount > assignedCount ? 'Add' : selectedCount < assignedCount ? 'Remove' : 'Update'} {Math.abs(selectedCount - assignedCount)} Program{Math.abs(selectedCount - assignedCount) !== 1 ? 's' : ''}
+            <span className="hidden sm:inline">
+              {selectedCount > assignedCount ? 'Add' : selectedCount < assignedCount ? 'Remove' : 'Update'} {Math.abs(selectedCount - assignedCount)} Program{Math.abs(selectedCount - assignedCount) !== 1 ? 's' : ''}
+            </span>
+            <span className="sm:hidden">
+              {selectedCount > assignedCount ? 'Add' : selectedCount < assignedCount ? 'Remove' : 'Update'} ({Math.abs(selectedCount - assignedCount)})
+            </span>
           </Button>
         </DialogFooter>
       </DialogContent>
