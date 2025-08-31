@@ -1,14 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { athletePerformanceService } from '@/services/athletePerformanceService';
+import { performanceCategoryService } from '@/services/performanceCategoryService';
 
 const PersonalRecords = () => {
-  const [records] = useState([
-    { id: 1, sport: 'Canoe', distance: '1000m', time: '4:15.32', date: '2024-01-15', improvement: '+2.1s' },
-    { id: 2, sport: 'Kayak', distance: '500m', time: '1:45.12', date: '2024-01-20', improvement: '+0.8s' },
-    { id: 3, sport: 'Canoe', distance: '500m', time: '2:05.45', date: '2024-01-10', improvement: 'New!' },
-  ]);
+  const { user, currentClubId } = useAuth();
+  const [records, setRecords] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user && currentClubId) {
+      loadPersonalRecords();
+    }
+  }, [user, currentClubId]);
+
+  const loadPersonalRecords = async () => {
+    if (!user || !currentClubId) return;
+    
+    setLoading(true);
+    try {
+      const [recordsData, categoriesData] = await Promise.all([
+        athletePerformanceService.getAthleteRecords(user.uid, currentClubId),
+        performanceCategoryService.getClubCategories(currentClubId)
+      ]);
+      setRecords(recordsData);
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error loading personal records:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.name : 'Unknown Category';
+  };
+
+  const getCategoryUnit = (categoryId) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.unit : '';
+  };
 
   return (
     <Card>
@@ -23,36 +59,45 @@ const PersonalRecords = () => {
       
       <CardContent>
         <div className="flex justify-between items-center mb-6">
-          <Button>Add New PR</Button>
           <Badge variant="secondary">{records.length} Records</Badge>
         </div>
 
-        <div className="space-y-4">
-          {records.map((record) => (
-            <Card key={record.id} className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{record.sport} - {record.distance}</h4>
-                    <Badge variant={record.improvement === 'New!' ? 'default' : 'secondary'}>
-                      {record.improvement}
-                    </Badge>
-                  </div>
-                  <p className="text-2xl font-bold text-primary">{record.time}</p>
-                  <p className="text-sm text-muted-foreground">{record.date}</p>
-                </div>
-                <Button variant="ghost" size="sm">
-                  Edit
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {records.length === 0 && (
+        {loading ? (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">No personal records yet.</p>
-            <p className="text-sm text-muted-foreground mt-1">Start by adding your first PR!</p>
+            <p className="text-muted-foreground">Loading your personal records...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {records.map((record) => (
+              <Card key={record.id} className="p-4">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium">{getCategoryName(record.categoryId)}</h4>
+                      <Badge variant="default">
+                        Personal Best
+                      </Badge>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {record.value} {getCategoryUnit(record.categoryId)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(record.date).toLocaleDateString()}
+                    </p>
+                    {record.notes && (
+                      <p className="text-sm text-muted-foreground italic">{record.notes}</p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+
+            {records.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No personal records yet.</p>
+                <p className="text-sm text-muted-foreground mt-1">Your coach will add your records when you achieve them!</p>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

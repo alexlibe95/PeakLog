@@ -55,6 +55,28 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // Performance Categories - admins can CRUD, users can read categories from their clubs
+    match /performanceCategories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
+    }
+    
+    // Athlete Records - users can CRUD their own, admins can CRUD all in their clubs
+    match /athleteRecords/{recordId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.athleteId;
+      allow read, write: if request.auth != null && 
+        isAdmin();
+    }
+    
+    // Athlete Goals - users can CRUD their own, admins can CRUD all in their clubs
+    match /athleteGoals/{goalId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.athleteId;
+      allow read, write: if request.auth != null && 
+        isAdmin();
+    }
+
     // Clubs multi-tenant model
     match /clubs/{clubId} {
       allow read: if isSignedIn() && isAdmin();

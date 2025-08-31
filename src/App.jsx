@@ -11,6 +11,7 @@ import TrainingManagement from './pages/TrainingManagement';
 import Settings from './pages/Settings';
 import AdminPage from './pages/AdminPage';
 import SuperAdminPage from './pages/SuperAdminPage';
+import AthleteManagement from './pages/AthleteManagement';
 
 function App() {
   return (
@@ -68,6 +69,14 @@ function App() {
             element={
               <ProtectedRoute adminOnly>
                 <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/athlete-management"
+            element={
+              <ProtectedRoute adminOnly>
+                <AthleteManagement />
               </ProtectedRoute>
             }
           />

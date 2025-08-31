@@ -1,103 +1,154 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { athletePerformanceService } from '@/services/athletePerformanceService';
+import { performanceCategoryService } from '@/services/performanceCategoryService';
+import { Target, Calendar, TrendingUp } from 'lucide-react';
 
 const GoalSetting = () => {
-  const [goals] = useState([
-    { 
-      id: 1, 
-      title: 'Sub 4:00 1000m', 
-      targetDate: '2024-06-01', 
-      progress: 75, 
-      status: 'in_progress',
-      category: 'Performance'
-    },
-    { 
-      id: 2, 
-      title: 'Attend 90% of sessions', 
-      targetDate: '2024-12-31', 
-      progress: 85, 
-      status: 'in_progress',
-      category: 'Attendance'
-    },
-    { 
-      id: 3, 
-      title: 'Complete technique course', 
-      targetDate: '2024-03-15', 
-      progress: 100, 
-      status: 'completed',
-      category: 'Skill Development'
-    },
-  ]);
+  const { user, currentClubId } = useAuth();
+  const [goals, setGoals] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const getStatusBadge = (status) => {
-    const badges = {
-      completed: 'bg-green-100 text-green-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      overdue: 'bg-red-100 text-red-800',
-      not_started: 'bg-gray-100 text-gray-800'
-    };
+  useEffect(() => {
+    if (user && currentClubId) {
+      loadGoals();
+    }
+  }, [user, currentClubId]);
+
+  const loadGoals = async () => {
+    if (!user || !currentClubId) return;
     
-    return badges[status] || 'bg-gray-100 text-gray-800';
+    setLoading(true);
+    try {
+      const [goalsData, categoriesData] = await Promise.all([
+        athletePerformanceService.getAthleteGoals(user.uid, currentClubId),
+        performanceCategoryService.getClubCategories(currentClubId)
+      ]);
+      setGoals(goalsData);
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error loading goals:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getProgressColor = (progress) => {
-    if (progress >= 80) return 'bg-green-500';
-    if (progress >= 50) return 'bg-yellow-500';
-    return 'bg-red-500';
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.name : 'Unknown Category';
+  };
+
+  const getCategoryUnit = (categoryId) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.unit : '';
+  };
+
+  const isOverdue = (targetDate) => {
+    return new Date(targetDate) < new Date();
+  };
+
+  const getDaysUntilTarget = (targetDate) => {
+    const today = new Date();
+    const target = new Date(targetDate);
+    const diffTime = target - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   return (
-    <div className="bg-white shadow rounded-lg">
-      <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-          🎯 Goal Setting
-        </h3>
-        
-        <div className="mb-4">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-            Set New Goal
-          </button>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Target className="h-5 w-5" />
+          Performance Goals
+        </CardTitle>
+        <CardDescription>
+          Track your performance goals and targets
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent>
+        <div className="flex justify-between items-center mb-6">
+          <Badge variant="secondary">{goals.length} Goals</Badge>
         </div>
 
-        <div className="space-y-4">
-          {goals.map((goal) => (
-            <div key={goal.id} className="border rounded-lg p-4">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-gray-900">{goal.title}</h4>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Target: {goal.targetDate} • {goal.category}
-                  </p>
-                </div>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusBadge(goal.status)}`}>
-                  {goal.status.replace('_', ' ')}
-                </span>
-              </div>
-              
-              {/* Progress Bar */}
-              <div className="mb-2">
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>Progress</span>
-                  <span>{goal.progress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(goal.progress)}`}
-                    style={{ width: `${goal.progress}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {goals.length === 0 && (
+        {loading ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">No goals set yet.</p>
-            <p className="text-sm text-gray-400 mt-1">Set your first goal to start tracking progress!</p>
+            <p className="text-muted-foreground">Loading your goals...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {goals.map((goal) => {
+              const daysUntil = getDaysUntilTarget(goal.targetDate);
+              const isGoalOverdue = isOverdue(goal.targetDate) && goal.status !== 'completed';
+              
+              return (
+                <Card key={goal.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{getCategoryName(goal.categoryId)}</h4>
+                        <Badge 
+                          variant={goal.status === 'completed' ? 'default' : isGoalOverdue ? 'destructive' : 'secondary'}
+                        >
+                          {goal.status === 'completed' ? 'Completed' : isGoalOverdue ? 'Overdue' : 'In Progress'}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-lg font-semibold">
+                          Target: {goal.targetValue} {getCategoryUnit(goal.categoryId)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          Target Date: {new Date(goal.targetDate).toLocaleDateString()}
+                          {goal.status !== 'completed' && (
+                            <span className={`ml-2 ${isGoalOverdue ? 'text-red-600' : ''}`}>
+                              {isGoalOverdue 
+                                ? `(${Math.abs(daysUntil)} days overdue)`
+                                : `(${daysUntil} days to go)`
+                              }
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      
+                      {goal.notes && (
+                        <p className="text-sm text-muted-foreground italic">{goal.notes}</p>
+                      )}
+                      
+                      {goal.achievedValue && goal.status === 'completed' && (
+                        <div className="text-sm text-green-600 font-medium">
+                          ✅ Achieved: {goal.achievedValue} {getCategoryUnit(goal.categoryId)}
+                          {goal.achievedDate && ` on ${new Date(goal.achievedDate).toLocaleDateString()}`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+
+            {goals.length === 0 && (
+              <div className="text-center py-8">
+                <Target className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
+                <p className="text-muted-foreground">No goals set yet.</p>
+                <p className="text-sm text-muted-foreground mt-1">Your coach will set performance goals for you!</p>
+              </div>
+            )}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

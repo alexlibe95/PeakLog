@@ -1,8 +1,6 @@
-import { Link } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, getCountFromServer, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { clubService } from '../services/clubService';
 import { Button } from "@/components/ui/button";
@@ -24,23 +22,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Navigation from '../components/Navigation';
-import { collection, getCountFromServer, getDocs, query, where } from 'firebase/firestore';
-import { Crown, Shield, Users, Target, Info, Settings } from 'lucide-react';
+import { Crown, Shield, Users, Target, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/toast-context.jsx';
 
 const Dashboard = () => {
   const {
     user,
     userProfile,
-    logout,
-    isAdmin,
     isSuper,
     currentClubId,
     currentRole,
     getCurrentMembership,
     memberships,
-    hasMultipleRoles,
-    switchRole,
     claims
   } = useAuth();
 
@@ -50,9 +43,6 @@ const Dashboard = () => {
   const [totalClubs, setTotalClubs] = useState(0);
   const [totalAdmins, setTotalAdmins] = useState(0);
   const [totalAthletes, setTotalAthletes] = useState(0);
-  const [clubAthletes, setClubAthletes] = useState(0);
-  const [clubAdmins, setClubAdmins] = useState(0);
-  const [clubSessions, setClubSessions] = useState(0);
   const [nextTrainingSession, setNextTrainingSession] = useState(null);
   const [upcomingTrainingDays, setUpcomingTrainingDays] = useState([]);
   const [currentTrainingSession, setCurrentTrainingSession] = useState(null);
@@ -61,15 +51,6 @@ const Dashboard = () => {
   const [attendanceAthletes, setAttendanceAthletes] = useState([]);
   const [loadingAthletes, setLoadingAthletes] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
-
-
-  // Athlete attendance state
-  const [athleteAttendanceHistory, setAthleteAttendanceHistory] = useState([]);
-  const [attendanceStats, setAttendanceStats] = useState({
-    present: 0,
-    late: 0,
-    absent: 0
-  });
 
   // Program details modal state
   const [selectedProgramDay, setSelectedProgramDay] = useState(null);
@@ -80,7 +61,7 @@ const Dashboard = () => {
   const [selectedDashboardClubId, setSelectedDashboardClubId] = useState('');
 
   // Get available roles and clubs for current user
-  const getAvailableRoles = () => {
+  const getAvailableRoles = useCallback(() => {
     const roles = new Set();
 
     if (isSuper()) {
@@ -92,9 +73,9 @@ const Dashboard = () => {
     });
 
     return Array.from(roles);
-  };
+  }, [isSuper, memberships]);
 
-  const getAvailableClubsForRole = (role) => {
+  const getAvailableClubsForRole = useCallback((role) => {
     if (role === 'super') {
       return []; // Super admin doesn't need club selection
     }
@@ -106,7 +87,7 @@ const Dashboard = () => {
         name: membership.clubName,
         role: membership.role
       }));
-  };
+  }, [memberships]);
 
   // Use selected role/club for dashboard content, fallback to current
   const dashboardRole = selectedDashboardRole || currentRole;
@@ -115,10 +96,8 @@ const Dashboard = () => {
     m.clubId === dashboardClubId && m.role === dashboardRole
   ) || getCurrentMembership();
 
-  const currentMembership = getCurrentMembership();
-
   // Get upcoming training days based on weekly schedule
-  const loadUpcomingTrainingDays = async (clubId) => {
+  const loadUpcomingTrainingDays = useCallback(async (clubId) => {
     try {
       console.log('🔄 loadUpcomingTrainingDays called with clubId:', clubId);
       console.log('👤 Current dashboard role:', dashboardRole);
@@ -179,34 +158,7 @@ const Dashboard = () => {
       setNextTrainingSession(null);
       setUpcomingTrainingDays([]);
     }
-  };
-
-  useEffect(() => {
-    console.log('📊 Data loading triggered:', {
-      dashboardRole,
-      dashboardClubId,
-      currentRole,
-      currentClubId,
-      isSuper: isSuper(),
-      userProfileRole: userProfile?.role,
-      superAdminClaim: claims?.super_admin
-    });
-
-    if (dashboardRole === 'super' || isSuper()) {
-      console.log('👑 Loading super admin stats');
-      loadSuperStats();
-    } else if (dashboardRole === 'admin' && dashboardClubId) {
-      console.log('⚡ Loading admin data for club:', dashboardClubId);
-      loadClubStats();
-      loadUpcomingTrainingDays(dashboardClubId); // Load training days for attendance management
-    } else if (dashboardRole === 'athlete' && dashboardClubId) {
-      console.log('🏃 Loading athlete data for club:', dashboardClubId);
-      loadUpcomingTrainingDays(dashboardClubId);
-      loadAthleteAttendance(dashboardClubId, user.uid); // Load athlete's attendance data
-    } else {
-      console.log('⏸️ No data loading - missing role or club');
-    }
-  }, [currentClubId, currentRole, dashboardRole, dashboardClubId, userProfile?.role, claims?.super_admin, memberships]);
+  }, [dashboardRole]);
 
   // Handle dashboard view changes
   const handleRoleChange = (newRole) => {
@@ -228,20 +180,21 @@ const Dashboard = () => {
   };
 
   // Synchronize dashboard view with AuthContext changes
+  const isSuperUser = isSuper();
   useEffect(() => {
     console.log('🔄 Dashboard sync triggered:', {
       currentRole,
       currentClubId,
       selectedDashboardRole,
       selectedDashboardClubId,
-      isSuper: isSuper(),
+      isSuper: isSuperUser,
       membershipsCount: (memberships || []).length
     });
 
     const availableRoles = getAvailableRoles();
     if (availableRoles.length > 0) {
       // Always synchronize with current AuthContext role when it changes
-      const targetRole = isSuper() ? 'super' : currentRole || availableRoles[0];
+      const targetRole = isSuperUser ? 'super' : currentRole || availableRoles[0];
       console.log('🎯 Setting dashboard role to:', targetRole);
       setSelectedDashboardRole(targetRole);
 
@@ -264,9 +217,9 @@ const Dashboard = () => {
     } else {
       console.log('❌ No available roles found');
     }
-  }, [currentRole, currentClubId, memberships, isSuper()]);
+  }, [currentRole, currentClubId, memberships, isSuperUser, selectedDashboardRole, selectedDashboardClubId, getAvailableRoles, getAvailableClubsForRole]);
 
-  const loadSuperStats = async () => {
+  const loadSuperStats = useCallback(async () => {
     setStatsLoading(true);
     try {
       const clubsSnap = await getDocs(collection(db, 'clubs'));
@@ -289,9 +242,9 @@ const Dashboard = () => {
     } finally {
       setStatsLoading(false);
     }
-  };
+  }, []);
 
-  const loadClubStats = async () => {
+  const loadClubStats = useCallback(async () => {
     if (!dashboardClubId) return;
 
     setStatsLoading(true);
@@ -305,30 +258,42 @@ const Dashboard = () => {
         getDocs(adminsQuery)
       ]);
 
-      setClubAthletes(athletesSnap.size);
-      setClubAdmins(adminsSnap.size);
-
-      // For now, set sessions to 0 - this could be expanded to track training sessions
-      setClubSessions(0);
+      // Note: These are loaded but not displayed in current UI
+      console.log('Club stats loaded:', { athletes: athletesSnap.size, admins: adminsSnap.size });
 
     } catch (e) {
       console.error('Error loading club stats:', e);
     } finally {
       setStatsLoading(false);
     }
-  };
+  }, [dashboardClubId]);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Error logging out:', error);
+  // Main data loading effect - moved after function definitions to avoid hoisting issues
+  useEffect(() => {
+    console.log('📊 Data loading triggered:', {
+      dashboardRole,
+      dashboardClubId,
+      currentRole,
+      currentClubId,
+      isSuper: isSuper(),
+      userProfileRole: userProfile?.role,
+      superAdminClaim: claims?.super_admin
+    });
+
+    if (dashboardRole === 'super' || isSuper()) {
+      console.log('👑 Loading super admin stats');
+      loadSuperStats();
+    } else if (dashboardRole === 'admin' && dashboardClubId) {
+      console.log('⚡ Loading admin data for club:', dashboardClubId);
+      loadClubStats();
+      loadUpcomingTrainingDays(dashboardClubId); // Load training days for attendance management
+    } else if (dashboardRole === 'athlete' && dashboardClubId) {
+      console.log('🏃 Loading athlete data for club:', dashboardClubId);
+      loadUpcomingTrainingDays(dashboardClubId);
+    } else {
+      console.log('⏸️ No data loading - missing role or club');
     }
-  };
-
-  const getInitials = (email) => {
-    return email ? email.substring(0, 2).toUpperCase() : 'U';
-  };
+  }, [currentClubId, currentRole, dashboardRole, dashboardClubId, userProfile?.role, claims?.super_admin, memberships, isSuper, loadClubStats, loadUpcomingTrainingDays, loadSuperStats]);
 
   const getRoleDisplayName = (role) => {
     switch (role) {
@@ -374,10 +339,7 @@ const Dashboard = () => {
     setIsProgramModalOpen(true);
   };
 
-  const closeProgramModal = () => {
-    setIsProgramModalOpen(false);
-    setSelectedProgramDay(null);
-  };
+
 
   // Helper function to get effective club ID (same logic as AdminPage)
   const getEffectiveClubId = () => {
@@ -535,86 +497,7 @@ const Dashboard = () => {
     setAttendanceAthletes([]);
   };
 
-  const markAttendance = async (athleteId, status, notes = '') => {
-    if (!currentTrainingSession) return;
 
-    try {
-      let sessionId = currentTrainingSession.id;
-
-      // If session doesn't exist yet (future session), create it first
-      if (!sessionId || sessionId === currentTrainingSession.dateString) {
-        console.log('Creating session for future training day:', currentTrainingSession);
-
-        const clubIdToUse = getEffectiveClubId();
-
-        // Create the training session
-        const sessionData = {
-          clubId: clubIdToUse,
-          programId: currentTrainingSession.programId || 'general-training',
-          title: currentTrainingSession.programName,
-          description: `${currentTrainingSession.day} training session`,
-          date: new Date(currentTrainingSession.dateString),
-          startTime: currentTrainingSession.startTime,
-          endTime: currentTrainingSession.endTime,
-          coachId: user.uid,
-          maxParticipants: null,
-          location: ''
-        };
-
-        const createdSession = await clubService.createTrainingSession(sessionData);
-        sessionId = createdSession.id;
-
-        // Update the current session with the new ID
-        setCurrentTrainingSession(prev => ({ ...prev, id: sessionId }));
-
-        console.log('Created new training session with ID:', sessionId);
-        toast({
-          title: "Training session created",
-          description: "Session created for attendance marking",
-        });
-      }
-
-      await clubService.markAttendance(
-        sessionId,
-        athleteId,
-        status,
-        user.uid,
-        notes
-      );
-
-      // Update local state
-      setSessionAttendance(prev => {
-        const existing = prev.find(a => a.athleteId === athleteId);
-        if (existing) {
-          return prev.map(a =>
-            a.athleteId === athleteId
-              ? { ...a, status, notes, markedAt: new Date() }
-              : a
-          );
-        } else {
-          return [...prev, {
-            athleteId,
-            status,
-            notes,
-            markedAt: new Date(),
-            markedBy: user.uid
-          }];
-        }
-      });
-
-      toast({
-        title: "Attendance Updated",
-        description: `Attendance marked as ${status}`,
-      });
-    } catch (error) {
-      console.error('Error marking attendance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update attendance",
-        variant: "destructive",
-      });
-    }
-  };
 
   const getAttendanceStatus = (athleteId) => {
     const attendance = sessionAttendance.find(a => a.athleteId === athleteId);
@@ -715,133 +598,7 @@ const Dashboard = () => {
 
 
 
-  // Load athlete attendance data
-  const loadAthleteAttendance = async (clubId, athleteId) => {
-    try {
-      console.log('📊 Loading athlete attendance for:', athleteId, 'in club:', clubId);
 
-      // Get all training sessions for this club from the trainingSessions collection
-      const sessionsQuery = query(
-        collection(db, 'trainingSessions'),
-        where('clubId', '==', clubId),
-        orderBy('date', 'desc'),
-        limit(20) // Get last 20 sessions
-      );
-      const sessionsSnap = await getDocs(sessionsQuery);
-
-      console.log('🔍 Found training sessions:', sessionsSnap.docs.length);
-      sessionsSnap.docs.forEach((doc, index) => {
-        console.log(`Session ${index + 1}:`, {
-          id: doc.id,
-          title: doc.data().title,
-          date: doc.data().date,
-          clubId: doc.data().clubId
-        });
-      });
-
-      const attendanceRecords = [];
-      let presentCount = 0, lateCount = 0, absentCount = 0;
-
-      for (const sessionDoc of sessionsSnap.docs) {
-        const sessionData = sessionDoc.data();
-        console.log(`🔍 Checking attendance for session ${sessionDoc.id}`);
-
-        // Get attendance for this athlete in this session
-        const attendanceQuery = query(
-          collection(db, 'trainingSessions', sessionDoc.id, 'attendance'),
-          where('athleteId', '==', athleteId)
-        );
-        const attendanceSnap = await getDocs(attendanceQuery);
-
-        console.log(`📋 Attendance records found for session ${sessionDoc.id}:`, attendanceSnap.docs.length);
-
-        if (!attendanceSnap.empty) {
-          const attendance = attendanceSnap.docs[0].data();
-          console.log(`✅ Athlete ${athleteId} attendance for session ${sessionDoc.id}:`, attendance.status);
-
-          attendanceRecords.push({
-            sessionId: sessionDoc.id,
-            sessionName: sessionData.title || sessionData.programName || 'Training Session',
-            date: sessionData.date,
-            status: attendance.status,
-            notes: attendance.notes || ''
-          });
-
-          // Count statistics
-          switch (attendance.status) {
-            case 'present':
-              presentCount++;
-              break;
-            case 'late':
-              lateCount++;
-              break;
-            case 'absent':
-              absentCount++;
-              break;
-          }
-        } else {
-          console.log(`❌ No attendance record found for athlete ${athleteId} in session ${sessionDoc.id}`);
-          // If no attendance record found, assume absent
-          attendanceRecords.push({
-            sessionId: sessionDoc.id,
-            sessionName: sessionData.title || sessionData.programName || 'Training Session',
-            date: sessionData.date,
-            status: 'absent',
-            notes: 'No attendance record'
-          });
-          absentCount++;
-        }
-      }
-
-      setAthleteAttendanceHistory(attendanceRecords);
-      setAttendanceStats({
-        present: presentCount,
-        late: lateCount,
-        absent: absentCount
-      });
-
-      console.log('✅ Final athlete attendance stats:', { present: presentCount, late: lateCount, absent: absentCount });
-      console.log('✅ Total attendance records:', attendanceRecords.length);
-    } catch (error) {
-      console.error('❌ Error loading athlete attendance:', error);
-    }
-  };
-
-  // Athlete self-attendance marking
-  const markSelfAttendance = async (sessionId, status, notes = '') => {
-    try {
-      console.log('📝 Athlete marking self-attendance:', { sessionId, status, notes });
-
-      const attendanceRef = doc(collection(db, 'clubs', dashboardClubId, 'attendance'));
-      const attendanceData = {
-        sessionId,
-        athleteId: user.uid,
-        athleteName: userProfile?.displayName || user.email,
-        status,
-        notes,
-        markedBy: 'athlete', // Indicates self-marked
-        markedAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      await setDoc(attendanceRef, attendanceData);
-
-      // Reload athlete attendance data
-      loadAthleteAttendance(dashboardClubId, user.uid);
-
-      toast({
-        title: "Attendance Marked",
-        description: `Your attendance has been marked as ${status}`,
-      });
-    } catch (error) {
-      console.error('❌ Error marking self-attendance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark attendance. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">

@@ -152,10 +152,12 @@ const Navigation = () => {
       // If super admin (actual or currently switched), add training management as additional option
       if (isActualSuperAdmin || isCurrentlySuper) {
         items.push({ path: '/training-management', label: 'Training Mgmt', icon: '🏋️' });
+        items.push({ path: '/athlete-management', label: 'Athlete Mgmt', icon: '🏆' });
       } else {
         // Regular admin users get both club admin and training management
         items.push({ path: '/admin', label: 'Club Admin', icon: '🛠️' });
         items.push({ path: '/training-management', label: 'Training Mgmt', icon: '🏋️' });
+        items.push({ path: '/athlete-management', label: 'Athlete Mgmt', icon: '🏆' });
       }
     }
 
