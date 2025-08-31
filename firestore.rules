@@ -76,6 +76,12 @@ service cloud.firestore {
       match /pendingAssignments/{assignmentId} {
         allow read, write: if isAdmin();
       }
+      
+      // Club messages - admins can manage, all club members can read
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
     }
 
     // Training programs - global collection for all clubs

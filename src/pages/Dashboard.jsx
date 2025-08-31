@@ -24,8 +24,9 @@ import {
 import Navigation from '../components/Navigation';
 import TrainingCalendar from '../components/TrainingCalendar';
 import VacationManager from '../components/VacationManager';
+import AdminMessageManager from '../components/AdminMessageManager';
 import { Crown, Shield, Users, Target, Info, Clock } from 'lucide-react';
-import { useToast } from '@/components/ui/toast-context.jsx';
+import { useToast } from '@/components/ui/toast-context';
 
 const Dashboard = () => {
   const {
@@ -50,6 +51,7 @@ const Dashboard = () => {
   const [currentTrainingSession, setCurrentTrainingSession] = useState(null);
   const [sessionAttendance, setSessionAttendance] = useState([]);
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
+  const [clubMessage, setClubMessage] = useState(null);
   const [attendanceAthletes, setAttendanceAthletes] = useState([]);
   const [loadingAthletes, setLoadingAthletes] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
@@ -138,6 +140,17 @@ const Dashboard = () => {
       return 'completed'; // Training has ended today
     }
   };
+
+  // Load club message for athletes
+  const loadClubMessage = useCallback(async (clubId) => {
+    try {
+      const message = await clubService.getClubMessage(clubId);
+      setClubMessage(message);
+    } catch (error) {
+      console.error('❌ Error loading club message:', error);
+      setClubMessage(null);
+    }
+  }, []);
 
   // Get upcoming training days based on weekly schedule
   const loadUpcomingTrainingDays = useCallback(async (clubId) => {
@@ -419,8 +432,9 @@ const Dashboard = () => {
     } else if (dashboardRole === 'athlete' && dashboardClubId) {
       loadUpcomingTrainingDays(dashboardClubId);
       loadAthleteAttendanceStats(dashboardClubId, user.uid);
+      loadClubMessage(dashboardClubId);
     }
-  }, [currentClubId, currentRole, dashboardRole, dashboardClubId, userProfile?.role, claims?.super_admin, memberships, isSuper, loadClubStats, loadUpcomingTrainingDays, loadSuperStats, loadAthleteAttendanceStats, user.uid]);
+  }, [currentClubId, currentRole, dashboardRole, dashboardClubId, userProfile?.role, claims?.super_admin, memberships, isSuper, loadClubStats, loadUpcomingTrainingDays, loadSuperStats, loadAthleteAttendanceStats, loadClubMessage, user.uid]);
 
   const getRoleDisplayName = (role) => {
     switch (role) {
@@ -922,6 +936,68 @@ const Dashboard = () => {
               </Card>
             </div>
 
+            {/* Club Message Display */}
+            {clubMessage && (
+              <Card className={`mb-6 border-2 ${
+                clubMessage.type === 'important' || clubMessage.priority === 'urgent' 
+                  ? 'border-red-300 bg-gradient-to-r from-red-50 to-red-100 shadow-lg' 
+                  : clubMessage.priority === 'high'
+                  ? 'border-orange-300 bg-gradient-to-r from-orange-50 to-orange-100'
+                  : clubMessage.type === 'reminder'
+                  ? 'border-yellow-300 bg-gradient-to-r from-yellow-50 to-yellow-100'
+                  : 'border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100'
+              }`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-3 text-lg">
+                    <div className="text-xl">
+                      {clubMessage.type === 'general' ? '📢' :
+                       clubMessage.type === 'reminder' ? '⏰' :
+                       clubMessage.type === 'equipment' ? '🎒' :
+                       clubMessage.type === 'schedule' ? '📅' :
+                       clubMessage.type === 'important' ? '❗' :
+                       clubMessage.type === 'motivation' ? '💪' : '📢'}
+                    </div>
+                    <span>Coach Message</span>
+                    <Badge className={
+                      clubMessage.priority === 'urgent' ? 'bg-red-500 text-white' :
+                      clubMessage.priority === 'high' ? 'bg-orange-500 text-white' :
+                      clubMessage.priority === 'normal' ? 'bg-blue-500 text-white' :
+                      'bg-gray-500 text-white'
+                    }>
+                      {clubMessage.priority === 'urgent' ? 'URGENT' :
+                       clubMessage.priority === 'high' ? 'HIGH PRIORITY' :
+                       clubMessage.priority === 'normal' ? 'NORMAL' : 'LOW PRIORITY'}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <h3 className="font-semibold text-lg mb-3 text-primary">
+                    {clubMessage.title}
+                  </h3>
+                  <p className="leading-relaxed mb-3">
+                    {clubMessage.content}
+                  </p>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    <span>
+                      Posted: {(() => {
+                        let date = clubMessage.updatedAt || clubMessage.createdAt;
+                        if (date?.toDate) date = date.toDate();
+                        else if (!(date instanceof Date)) date = new Date(date);
+                        return isNaN(date?.getTime()) ? 'Recently' : date.toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        });
+                      })()}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Current/Next Training Day - Full Width Prominent Display */}
             <Card className={`mb-6 border-2 ${
               nextTrainingSession?.status === 'in-progress' 
@@ -1217,6 +1293,11 @@ const Dashboard = () => {
           <VacationManager 
             clubId={dashboardClubId}
             clubName={dashboardMembership?.clubName}
+          />
+
+          {/* Admin Message Manager - for posting messages to athletes */}
+          <AdminMessageManager 
+            clubId={dashboardClubId}
           />
           </>
         )}

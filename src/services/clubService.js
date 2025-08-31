@@ -1253,6 +1253,58 @@ export const clubService = {
       console.error('Error cancelling invitation by ID:', error);
       throw error;
     }
+  },
+
+  // ==================== CLUB MESSAGES ====================
+
+  async saveClubMessage(clubId, messageData) {
+    try {
+      const messageRef = doc(db, 'clubs', clubId, 'messages', 'current');
+      const messageToSave = {
+        ...messageData,
+        updatedAt: new Date(),
+        active: true
+      };
+      
+      await setDoc(messageRef, messageToSave);
+      console.log('✅ Club message saved successfully');
+      return messageToSave;
+    } catch (error) {
+      console.error('❌ Error saving club message:', error);
+      throw error;
+    }
+  },
+
+  async getClubMessage(clubId) {
+    try {
+      const messageRef = doc(db, 'clubs', clubId, 'messages', 'current');
+      const messageSnap = await getDoc(messageRef);
+      
+      if (messageSnap.exists()) {
+        const messageData = messageSnap.data();
+        // Only return active messages
+        return messageData.active ? messageData : null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('❌ Error getting club message:', error);
+      throw error;
+    }
+  },
+
+  async deleteClubMessage(clubId) {
+    try {
+      const messageRef = doc(db, 'clubs', clubId, 'messages', 'current');
+      await updateDoc(messageRef, {
+        active: false,
+        deletedAt: new Date()
+      });
+      console.log('✅ Club message deleted successfully');
+    } catch (error) {
+      console.error('❌ Error deleting club message:', error);
+      throw error;
+    }
   }
 };
 
