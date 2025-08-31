@@ -195,29 +195,7 @@ function MemberManagement({
     }
   };
 
-  // Resend invitation
-  const handleResendInvitation = async (email, role) => {
-    setSaving(true);
-    try {
-      if (role === 'admin') {
-        await clubService.assignAdminByEmail(clubId, email);
-      } else {
-        await clubService.assignAthleteByEmail(clubId, email);
-      }
-      
-      toast({
-        title: 'Invitation resent successfully'
-      });
-    } catch (error) {
-      console.error('Error resending invitation:', error);
-      toast({
-        title: 'Failed to resend invitation',
-        variant: 'destructive'
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+
 
   if (!clubId) {
     return (
@@ -254,31 +232,34 @@ function MemberManagement({
         <div className="space-y-4">
           <div>
             <h4 className="text-sm font-medium mb-2">Add New Member</h4>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
               <span className="text-sm text-muted-foreground">Adding to:</span>
-              <Badge variant="outline">
-                {clubName || 'Selected Club'}
+              <Badge variant="outline" className="max-w-full">
+                <span className="truncate">{clubName || 'Selected Club'}</span>
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 placeholder="member@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="flex-1"
               />
-              <Select value={inviteRole} onValueChange={setInviteRole}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="athlete">Athlete</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button onClick={handleAddMember} disabled={saving || !clubId}>
-                Add Member
-              </Button>
+              <div className="flex gap-2">
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger className="w-full sm:w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="athlete">Athlete</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleAddMember} disabled={saving || !clubId} className="whitespace-nowrap">
+                  <span className="sm:hidden">Add</span>
+                  <span className="hidden sm:inline">Add Member</span>
+                </Button>
+              </div>
             </div>
             <div className="text-xs text-muted-foreground mt-2">
               💡 <strong>Tip:</strong> You can add people who haven't registered yet.
@@ -296,14 +277,14 @@ function MemberManagement({
               <Clock className="h-4 w-4 text-orange-600" />
               Pending Invitations ({pendingInvitations.length})
             </h4>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-2">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 sm:p-4 space-y-2">
               {pendingInvitations.map((invitation) => (
-                <div key={invitation.id} className="flex items-center justify-between p-2 bg-white rounded border">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-4 w-4 text-orange-600" />
-                    <div>
-                      <span className="font-medium">{invitation.email}</span>
-                      <div className="flex items-center gap-2 mt-1">
+                <div key={invitation.id} className="flex items-center justify-between p-2 bg-white rounded border gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Mail className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{invitation.email}</div>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
                         {getRoleIcon(invitation.role)}
                         <Badge className={getRoleBadgeColor(invitation.role)} variant="outline">
                           {invitation.role}
@@ -314,41 +295,31 @@ function MemberManagement({
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleResendInvitation(invitation.email, invitation.role)}
-                      disabled={saving}
-                    >
-                      Resend
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to cancel the invitation for {invitation.email}?
-                            They will no longer be able to join the club with this invitation.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleCancelInvitation(invitation.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Cancel Invitation
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="p-2 flex-shrink-0">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="w-[95vw] max-w-md">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to cancel the invitation for {invitation.email}?
+                          They will no longer be able to join the club with this invitation.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                        <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+                        >
+                          Cancel Invitation
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               ))}
             </div>
@@ -368,34 +339,83 @@ function MemberManagement({
               No active members yet.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members.map((member) => (
+                      <TableRow key={member.id}>
+                        <TableCell className="truncate max-w-xs">{member.email || 'N/A'}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getRoleIcon(member.role)}
+                            <Badge className={getRoleBadgeColor(member.role)}>
+                              {member.role}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="w-[95vw] max-w-md">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove {member.role === 'admin' ? 'Admin' : 'Athlete'}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to remove {member.email || member.id} from this club?
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleRemoveMember(member.id, member.role)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+                                >
+                                  Remove
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-3">
                 {members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell>{member.email || 'N/A'}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getRoleIcon(member.role)}
-                        <Badge className={getRoleBadgeColor(member.role)}>
-                          {member.role}
-                        </Badge>
+                  <div key={member.id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{member.email || 'N/A'}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {getRoleIcon(member.role)}
+                          <Badge className={getRoleBadgeColor(member.role)}>
+                            {member.role}
+                          </Badge>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="ml-2">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="w-[95vw] max-w-md">
                           <AlertDialogHeader>
                             <AlertDialogTitle>Remove {member.role === 'admin' ? 'Admin' : 'Athlete'}</AlertDialogTitle>
                             <AlertDialogDescription>
@@ -403,22 +423,22 @@ function MemberManagement({
                               This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogFooter className="flex-col gap-2">
+                            <AlertDialogCancel className="w-full">Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => handleRemoveMember(member.id, member.role)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full"
                             >
                               Remove
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </div>
       </CardContent>

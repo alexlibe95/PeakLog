@@ -249,19 +249,19 @@ function SuperAdminPage() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="max-w-6xl mx-auto p-4 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">{isSuper() ? 'Super Admin' : 'Club Admin'}</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl sm:text-3xl font-semibold truncate">{isSuper() ? 'Super Admin' : 'Club Admin'}</h1>
           {(isSuper() || adminMemberships.length > 0) && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Managing:</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+              <span className="text-sm text-muted-foreground hidden sm:inline">Managing:</span>
               {isSuper() ? (
                 // Super admin - show club dropdown with management buttons
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                   <Select
                     value={selectedClubId}
                     onValueChange={setSelectedClubId}
                   >
-                    <SelectTrigger className="w-48">
+                    <SelectTrigger className="w-full sm:w-48">
                       <SelectValue placeholder="Select a club..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -269,43 +269,49 @@ function SuperAdminPage() {
                         <SelectItem key={c.id} value={c.id}>
                           <div className="flex items-center gap-2">
                             <Shield className="h-3 w-3" />
-                            {c.name} {c.status === 'inactive' ? '(inactive)' : ''}
+                            <span className="truncate">{c.name} {c.status === 'inactive' ? '(inactive)' : ''}</span>
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newName = prompt('Enter new club name:', selectedClub?.name || '');
-                      if (newName && newName.trim() && newName.trim() !== selectedClub?.name) {
-                        handleRenameClub(newName.trim());
-                      }
-                    }}
-                    disabled={!selectedClubId}
-                  >
-                    ✏️
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const clubName = prompt('Enter new club name:');
-                      if (clubName && clubName.trim()) {
-                        handleCreateClub(clubName.trim());
-                      }
-                    }}
-                  >
-                    ➕
-                  </Button>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 sm:flex-none"
+                      onClick={() => {
+                        const newName = prompt('Enter new club name:', selectedClub?.name || '');
+                        if (newName && newName.trim() && newName.trim() !== selectedClub?.name) {
+                          handleRenameClub(newName.trim());
+                        }
+                      }}
+                      disabled={!selectedClubId}
+                    >
+                      <span className="sm:hidden">Rename</span>
+                      <span className="hidden sm:inline">✏️</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 sm:flex-none"
+                      onClick={() => {
+                        const clubName = prompt('Enter new club name:');
+                        if (clubName && clubName.trim()) {
+                          handleCreateClub(clubName.trim());
+                        }
+                      }}
+                    >
+                      <span className="sm:hidden">Create</span>
+                      <span className="hidden sm:inline">➕</span>
+                    </Button>
+                  </div>
                 </div>
               ) : adminMemberships.length === 1 ? (
                 // Single club - show badge
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Shield className="h-3 w-3" />
-                  {adminMemberships[0].clubName}
+                <Badge variant="outline" className="flex items-center gap-1 max-w-full">
+                  <Shield className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{adminMemberships[0].clubName}</span>
                 </Badge>
               ) : (
                 // Multiple clubs - show dropdown
@@ -313,7 +319,7 @@ function SuperAdminPage() {
                   value={selectedAdminClubId}
                   onValueChange={setSelectedAdminClubId}
                 >
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -321,7 +327,7 @@ function SuperAdminPage() {
                       <SelectItem key={membership.clubId} value={membership.clubId}>
                         <div className="flex items-center gap-2">
                           <Shield className="h-3 w-3" />
-                          {membership.clubName}
+                          <span className="truncate">{membership.clubName}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -358,40 +364,43 @@ function SuperAdminPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">{selectedClub.name}</h4>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-medium truncate">{selectedClub.name}</h4>
                   <p className="text-sm text-muted-foreground">
                     Status: <Badge variant={selectedClub.status === 'active' ? 'default' : 'secondary'}>
                       {selectedClub.status === 'active' ? '✅ Active' : '🚫 Inactive'}
                     </Badge>
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                   {selectedClub.status === 'inactive' ? (
                     <>
                       <Button
                         onClick={handleActivateClub}
                         disabled={saving}
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+                        size="sm"
                       >
-                        ✅ Activate Club
+                        <span className="sm:hidden">Activate Club</span>
+                        <span className="hidden sm:inline">✅ Activate Club</span>
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" disabled={saving}>
+                          <Button variant="destructive" disabled={saving} className="w-full sm:w-auto" size="sm">
                             <Trash2 className="h-4 w-4 mr-2" />
-                            🗑️ Delete Club
+                            <span className="sm:hidden">Delete Club</span>
+                            <span className="hidden sm:inline">🗑️ Delete Club</span>
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="w-[95vw] max-w-md sm:max-w-lg">
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Club Permanently</AlertDialogTitle>
-                            <AlertDialogDescription>
+                            <AlertDialogDescription className="max-h-[60vh] overflow-y-auto">
                               Are you absolutely sure you want to delete "{selectedClub?.name}"?
                               <br /><br />
                               This action will permanently delete:
-                              <ul className="list-disc list-inside mt-2 space-y-1">
+                              <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
                                 <li>All club members and their memberships</li>
                                 <li>All training programs and schedules</li>
                                 <li>All attendance records and sessions</li>
@@ -401,11 +410,11 @@ function SuperAdminPage() {
                               This action cannot be undone and will affect all users.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={handleDeleteClub}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
                             >
                               Delete Club Forever
                             </AlertDialogAction>
@@ -418,9 +427,11 @@ function SuperAdminPage() {
                       variant="destructive"
                       onClick={handleDeactivateClub}
                       disabled={saving}
-                      size="lg"
+                      className="w-full sm:w-auto"
+                      size="sm"
                     >
-                      🚫 Deactivate Club
+                      <span className="sm:hidden">Deactivate Club</span>
+                      <span className="hidden sm:inline">🚫 Deactivate Club</span>
                     </Button>
                   )}
                 </div>

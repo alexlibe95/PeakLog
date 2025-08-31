@@ -54,16 +54,16 @@ function AdminPage() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="max-w-6xl mx-auto p-4 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Club Admin</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl sm:text-3xl font-semibold truncate">Club Admin</h1>
           {adminMemberships.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Managing:</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:inline">Managing:</span>
               {adminMemberships.length === 1 ? (
                 // Single club - show badge
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Shield className="h-3 w-3" />
-                  {adminMemberships[0].clubName}
+                <Badge variant="outline" className="flex items-center gap-1 max-w-full">
+                  <Shield className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{adminMemberships[0].clubName}</span>
                 </Badge>
               ) : (
                 // Multiple clubs - show dropdown
@@ -71,7 +71,7 @@ function AdminPage() {
                   value={selectedAdminClubId}
                   onValueChange={setSelectedAdminClubId}
                 >
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -79,7 +79,7 @@ function AdminPage() {
                       <SelectItem key={membership.clubId} value={membership.clubId}>
                         <div className="flex items-center gap-2">
                           <Shield className="h-3 w-3" />
-                          {membership.clubName}
+                          <span className="truncate">{membership.clubName}</span>
                         </div>
                       </SelectItem>
                     ))}
