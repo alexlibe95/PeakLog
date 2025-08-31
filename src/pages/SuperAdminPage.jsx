@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/toast-context.jsx';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { clubService } from '@/services/clubService';
 import { Shield, Trash2 } from 'lucide-react';
 

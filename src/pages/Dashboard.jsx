@@ -1181,7 +1181,7 @@ const Dashboard = () => {
 
         {/* Attendance Management Dialog */}
         <Dialog open={showAttendanceDialog} onOpenChange={setShowAttendanceDialog}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <span className="text-lg">📊</span>
@@ -1189,9 +1189,9 @@ const Dashboard = () => {
               </DialogTitle>
               <DialogDescription>
                 {currentTrainingSession && (
-                  <>
+                  <span className="truncate">
                     {currentTrainingSession.programName} - {currentTrainingSession.day}
-                  </>
+                  </span>
                 )}
               </DialogDescription>
             </DialogHeader>
@@ -1199,9 +1199,9 @@ const Dashboard = () => {
             {currentTrainingSession && (
               <div className="space-y-4">
                 {/* Session Info */}
-                <div className="p-4 bg-primary/5 rounded-lg border">
-                  <h4 className="font-semibold mb-2">{currentTrainingSession.programName}</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 sm:p-4 bg-primary/5 rounded-lg border">
+                  <h4 className="font-semibold mb-2 truncate">{currentTrainingSession.programName}</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Date:</span>
                       <div className="font-medium">
@@ -1241,25 +1241,25 @@ const Dashboard = () => {
                     ) : (
                       <div className="space-y-3">
                         {attendanceAthletes.map((athlete) => (
-                          <div key={athlete.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                          <div key={athlete.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-3">
+                            <div className="flex items-center space-x-3 min-w-0 flex-1">
+                              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                                 <span className="text-sm font-medium">
                                   {(athlete.firstName || athlete.email || 'A')[0].toUpperCase()}
                                 </span>
                               </div>
-                              <div>
-                                <p className="font-medium">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium truncate">
                                   {athlete.firstName && athlete.lastName
                                     ? `${athlete.firstName} ${athlete.lastName}`
                                     : athlete.email || 'Unknown Athlete'}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground truncate">
                                   {athlete.email}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                               <Select
                                 value={getAttendanceStatus(athlete.id)}
                                 onValueChange={(status) => {
@@ -1292,7 +1292,7 @@ const Dashboard = () => {
                                   });
                                 }}
                               >
-                                <SelectTrigger className={`w-32 ${getAttendanceStatus(athlete.id) ? 'border-green-500 bg-green-50' : ''}`}>
+                                <SelectTrigger className={`w-full sm:w-32 min-w-[120px] ${getAttendanceStatus(athlete.id) ? 'border-green-500 bg-green-50' : ''}`}>
                                   <SelectValue placeholder="Mark attendance" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1302,7 +1302,7 @@ const Dashboard = () => {
                                 </SelectContent>
                               </Select>
                               {getAttendanceStatus(athlete.id) && (
-                                <div className="text-xs text-green-600 font-medium">
+                                <div className="text-xs text-green-600 font-medium whitespace-nowrap">
                                   ✓ Saved
                                 </div>
                               )}
@@ -1316,19 +1316,20 @@ const Dashboard = () => {
               </div>
             )}
 
-            <DialogFooter className="flex justify-between">
-              <div className="flex items-center text-sm text-muted-foreground">
+            <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-3">
+              <div className="flex items-center text-sm text-muted-foreground order-2 sm:order-1">
                 {sessionAttendance.length > 0 && (
                   <span>{sessionAttendance.length} athlete(s) marked</span>
                 )}
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={closeAttendanceDialog}>
+              <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2">
+                <Button variant="outline" onClick={closeAttendanceDialog} className="w-full sm:w-auto">
                   Close
                 </Button>
                 <Button
                   onClick={saveAllAttendance}
                   disabled={savingAttendance || sessionAttendance.length === 0}
+                  className="w-full sm:w-auto"
                 >
                   {savingAttendance ? 'Saving...' : 'Save All Attendance'}
                 </Button>

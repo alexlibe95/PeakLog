@@ -462,19 +462,19 @@ function AthleteManagement() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="max-w-7xl mx-auto p-4 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Athlete Performance Management</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-xl sm:text-2xl font-semibold truncate">Athlete Performance Management</h1>
           {adminMemberships.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Managing:</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:inline">Managing:</span>
               {adminMemberships.length === 1 ? (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Shield className="h-3 w-3" />
-                  {adminMemberships[0].clubName}
+                <Badge variant="outline" className="flex items-center gap-1 max-w-full">
+                  <Shield className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{adminMemberships[0].clubName}</span>
                 </Badge>
               ) : (
                 <Select value={selectedAdminClubId} onValueChange={setSelectedAdminClubId}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -482,7 +482,7 @@ function AthleteManagement() {
                       <SelectItem key={membership.clubId} value={membership.clubId}>
                         <div className="flex items-center gap-2">
                           <Shield className="h-3 w-3" />
-                          {membership.clubName}
+                          <span className="truncate">{membership.clubName}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -498,16 +498,17 @@ function AthleteManagement() {
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Performance Categories
-                  </CardTitle>
-                  <Button size="sm" onClick={() => openCategoryDialog()}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
-                  </Button>
-                </div>
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Performance Categories
+                    </CardTitle>
+                    <Button size="sm" onClick={() => openCategoryDialog()} className="w-full sm:w-auto">
+                      <Plus className="h-4 w-4 mr-1" />
+                      <span className="sm:hidden">Add Category</span>
+                      <span className="hidden sm:inline">Add</span>
+                    </Button>
+                  </div>
                 <CardDescription>
                   Manage exercise categories like bench press, 1000m time, etc.
                 </CardDescription>
@@ -522,17 +523,17 @@ function AthleteManagement() {
                 ) : (
                   <div className="space-y-2">
                     {categories.map((category) => (
-                      <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <div className="font-medium">{category.name}</div>
+                      <div key={category.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium truncate">{category.name}</div>
                           {category.unit && (
                             <div className="text-sm text-muted-foreground">Unit: {category.unit}</div>
                           )}
                           {category.description && (
-                            <div className="text-sm text-muted-foreground">{category.description}</div>
+                            <div className="text-sm text-muted-foreground line-clamp-2">{category.description}</div>
                           )}
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-shrink-0">
                           <Button size="sm" variant="ghost" onClick={() => openCategoryDialog(category)}>
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -542,18 +543,18 @@ function AthleteManagement() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent>
+                            <AlertDialogContent className="w-[95vw] max-w-md">
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Category</AlertDialogTitle>
                                 <AlertDialogDescription>
                                   Are you sure you want to delete "{category.name}"? This will also delete all related records and goals.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => handleDeleteCategory(category.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
                                 >
                                   Delete
                                 </AlertDialogAction>
@@ -592,23 +593,23 @@ function AthleteManagement() {
                     <p className="text-sm mt-1">Athletes will appear here when they join the club</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {athletes.map((athlete) => (
                       <Button
                         key={athlete.id}
                         variant={selectedAthlete?.id === athlete.id ? "default" : "outline"}
-                        className="justify-start h-auto p-4"
+                        className="justify-start h-auto p-4 w-full"
                         onClick={() => setSelectedAthlete(athlete)}
                       >
-                        <div className="text-left">
-                          <div className="font-medium">
+                        <div className="text-left min-w-0 w-full">
+                          <div className="font-medium truncate">
                             {athlete.firstName && athlete.lastName 
                               ? `${athlete.firstName} ${athlete.lastName}`
                               : athlete.email
                             }
                           </div>
                           {athlete.sport && (
-                            <div className="text-sm text-muted-foreground">{athlete.sport}</div>
+                            <div className="text-sm text-muted-foreground truncate">{athlete.sport}</div>
                           )}
                         </div>
                       </Button>
@@ -624,17 +625,20 @@ function AthleteManagement() {
                 {/* Personal Records */}
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <Trophy className="h-5 w-5" />
-                        Personal Records - {selectedAthlete.firstName && selectedAthlete.lastName 
-                          ? `${selectedAthlete.firstName} ${selectedAthlete.lastName}`
-                          : selectedAthlete.email
-                        }
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <CardTitle className="flex items-center gap-2 min-w-0">
+                        <Trophy className="h-5 w-5 flex-shrink-0" />
+                        <span className="truncate">
+                          Personal Records - {selectedAthlete.firstName && selectedAthlete.lastName 
+                            ? `${selectedAthlete.firstName} ${selectedAthlete.lastName}`
+                            : selectedAthlete.email
+                          }
+                        </span>
                       </CardTitle>
-                      <Button size="sm" onClick={() => openRecordDialog()} disabled={categories.length === 0}>
+                      <Button size="sm" onClick={() => openRecordDialog()} disabled={categories.length === 0} className="w-full sm:w-auto">
                         <Plus className="h-4 w-4 mr-1" />
-                        Add Record
+                        <span className="sm:hidden">Add Personal Record</span>
+                        <span className="hidden sm:inline">Add Record</span>
                       </Button>
                     </div>
                     <CardDescription>
@@ -649,27 +653,72 @@ function AthleteManagement() {
                         <p className="text-sm mt-1">Add the athlete's first personal record</p>
                       </div>
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Value</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Notes</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                      <>
+                        {/* Desktop Table View */}
+                        <div className="hidden sm:block">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Category</TableHead>
+                                <TableHead>Value</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Notes</TableHead>
+                                <TableHead>Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {selectedAthleteRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell className="truncate max-w-xs">{getCategoryName(record.categoryId)}</TableCell>
+                                  <TableCell>
+                                    {record.value} {getCategoryUnit(record.categoryId)}
+                                  </TableCell>
+                                  <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                                  <TableCell className="truncate max-w-xs">{record.notes || '-'}</TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button size="sm" variant="ghost" onClick={() => openRecordDialog(record)}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button size="sm" variant="ghost">
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent className="w-[95vw] max-w-md">
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Record</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Are you sure you want to delete this personal record?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => handleDeleteRecord(record.id)}
+                                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+                                            >
+                                              Delete
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="sm:hidden space-y-3">
                           {selectedAthleteRecords.map((record) => (
-                            <TableRow key={record.id}>
-                              <TableCell>{getCategoryName(record.categoryId)}</TableCell>
-                              <TableCell>
-                                {record.value} {getCategoryUnit(record.categoryId)}
-                              </TableCell>
-                              <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                              <TableCell>{record.notes || '-'}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-1">
+                            <div key={record.id} className="border rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="font-medium truncate">{getCategoryName(record.categoryId)}</div>
+                                <div className="flex gap-1 flex-shrink-0">
                                   <Button size="sm" variant="ghost" onClick={() => openRecordDialog(record)}>
                                     <Edit className="h-4 w-4" />
                                   </Button>
@@ -679,18 +728,18 @@ function AthleteManagement() {
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent className="w-[95vw] max-w-md">
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>Delete Record</AlertDialogTitle>
                                         <AlertDialogDescription>
                                           Are you sure you want to delete this personal record?
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogFooter className="flex-col gap-2">
+                                        <AlertDialogCancel className="w-full">Cancel</AlertDialogCancel>
                                         <AlertDialogAction
                                           onClick={() => handleDeleteRecord(record.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full"
                                         >
                                           Delete
                                         </AlertDialogAction>
@@ -698,11 +747,16 @@ function AthleteManagement() {
                                     </AlertDialogContent>
                                   </AlertDialog>
                                 </div>
-                              </TableCell>
-                            </TableRow>
+                              </div>
+                              <div className="space-y-1 text-sm text-muted-foreground">
+                                <div><strong>Value:</strong> {record.value} {getCategoryUnit(record.categoryId)}</div>
+                                <div><strong>Date:</strong> {new Date(record.date).toLocaleDateString()}</div>
+                                {record.notes && <div><strong>Notes:</strong> {record.notes}</div>}
+                              </div>
+                            </div>
                           ))}
-                        </TableBody>
-                      </Table>
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -710,17 +764,20 @@ function AthleteManagement() {
                 {/* Goals */}
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Goals - {selectedAthlete.firstName && selectedAthlete.lastName 
-                          ? `${selectedAthlete.firstName} ${selectedAthlete.lastName}`
-                          : selectedAthlete.email
-                        }
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <CardTitle className="flex items-center gap-2 min-w-0">
+                        <Target className="h-5 w-5 flex-shrink-0" />
+                        <span className="truncate">
+                          Goals - {selectedAthlete.firstName && selectedAthlete.lastName 
+                            ? `${selectedAthlete.firstName} ${selectedAthlete.lastName}`
+                            : selectedAthlete.email
+                          }
+                        </span>
                       </CardTitle>
-                      <Button size="sm" onClick={() => openGoalDialog()} disabled={categories.length === 0}>
+                      <Button size="sm" onClick={() => openGoalDialog()} disabled={categories.length === 0} className="w-full sm:w-auto">
                         <Plus className="h-4 w-4 mr-1" />
-                        Add Goal
+                        <span className="sm:hidden">Add Goal</span>
+                        <span className="hidden sm:inline">Add Goal</span>
                       </Button>
                     </div>
                     <CardDescription>
@@ -735,27 +792,72 @@ function AthleteManagement() {
                         <p className="text-sm mt-1">Set the athlete's first performance goal</p>
                       </div>
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Target</TableHead>
-                            <TableHead>Target Date</TableHead>
-                            <TableHead>Notes</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                      <>
+                        {/* Desktop Table View */}
+                        <div className="hidden sm:block">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Category</TableHead>
+                                <TableHead>Target</TableHead>
+                                <TableHead>Target Date</TableHead>
+                                <TableHead>Notes</TableHead>
+                                <TableHead>Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {selectedAthleteGoals.map((goal) => (
+                                <TableRow key={goal.id}>
+                                  <TableCell className="truncate max-w-xs">{getCategoryName(goal.categoryId)}</TableCell>
+                                  <TableCell>
+                                    {goal.targetValue} {getCategoryUnit(goal.categoryId)}
+                                  </TableCell>
+                                  <TableCell>{new Date(goal.targetDate).toLocaleDateString()}</TableCell>
+                                  <TableCell className="truncate max-w-xs">{goal.notes || '-'}</TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button size="sm" variant="ghost" onClick={() => openGoalDialog(goal)}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button size="sm" variant="ghost">
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent className="w-[95vw] max-w-md">
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Are you sure you want to delete this goal?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => handleDeleteGoal(goal.id)}
+                                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+                                            >
+                                              Delete
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="sm:hidden space-y-3">
                           {selectedAthleteGoals.map((goal) => (
-                            <TableRow key={goal.id}>
-                              <TableCell>{getCategoryName(goal.categoryId)}</TableCell>
-                              <TableCell>
-                                {goal.targetValue} {getCategoryUnit(goal.categoryId)}
-                              </TableCell>
-                              <TableCell>{new Date(goal.targetDate).toLocaleDateString()}</TableCell>
-                              <TableCell>{goal.notes || '-'}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-1">
+                            <div key={goal.id} className="border rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="font-medium truncate">{getCategoryName(goal.categoryId)}</div>
+                                <div className="flex gap-1 flex-shrink-0">
                                   <Button size="sm" variant="ghost" onClick={() => openGoalDialog(goal)}>
                                     <Edit className="h-4 w-4" />
                                   </Button>
@@ -765,18 +867,18 @@ function AthleteManagement() {
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent className="w-[95vw] max-w-md">
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>Delete Goal</AlertDialogTitle>
                                         <AlertDialogDescription>
                                           Are you sure you want to delete this goal?
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogFooter className="flex-col gap-2">
+                                        <AlertDialogCancel className="w-full">Cancel</AlertDialogCancel>
                                         <AlertDialogAction
                                           onClick={() => handleDeleteGoal(goal.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full"
                                         >
                                           Delete
                                         </AlertDialogAction>
@@ -784,11 +886,16 @@ function AthleteManagement() {
                                     </AlertDialogContent>
                                   </AlertDialog>
                                 </div>
-                              </TableCell>
-                            </TableRow>
+                              </div>
+                              <div className="space-y-1 text-sm text-muted-foreground">
+                                <div><strong>Target:</strong> {goal.targetValue} {getCategoryUnit(goal.categoryId)}</div>
+                                <div><strong>Target Date:</strong> {new Date(goal.targetDate).toLocaleDateString()}</div>
+                                {goal.notes && <div><strong>Notes:</strong> {goal.notes}</div>}
+                              </div>
+                            </div>
                           ))}
-                        </TableBody>
-                      </Table>
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
