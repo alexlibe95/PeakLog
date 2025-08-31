@@ -985,6 +985,49 @@ export const clubService = {
       console.error('Error promoting user by email:', error);
       throw error;
     }
+  },
+
+  // Pending Invitations Management
+  async getPendingInvitations(clubId) {
+    try {
+      const pendingRef = collection(db, 'clubs', clubId, 'pendingAssignments');
+      const snapshot = await getDocs(pendingRef);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().assignedAt // Use assignedAt as createdAt for consistency
+      }));
+    } catch (error) {
+      console.error('Error fetching pending invitations:', error);
+      throw error;
+    }
+  },
+
+  async cancelInvitation(clubId, email) {
+    try {
+      // pendingAssignments uses email with dots replaced by underscores as doc ID
+      const docId = email.replace(/\./g, '_');
+      const pendingRef = doc(db, 'clubs', clubId, 'pendingAssignments', docId);
+      await deleteDoc(pendingRef);
+      console.log('✅ Invitation cancelled for:', email);
+      return true;
+    } catch (error) {
+      console.error('Error cancelling invitation:', error);
+      throw error;
+    }
+  },
+
+  // Updated method to handle invitation cancellation by document ID
+  async cancelInvitationById(invitationId, clubId) {
+    try {
+      const pendingRef = doc(db, 'clubs', clubId, 'pendingAssignments', invitationId);
+      await deleteDoc(pendingRef);
+      console.log('✅ Invitation cancelled:', invitationId);
+      return true;
+    } catch (error) {
+      console.error('Error cancelling invitation by ID:', error);
+      throw error;
+    }
   }
 };
 
