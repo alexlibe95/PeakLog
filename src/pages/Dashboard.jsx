@@ -858,51 +858,55 @@ const Dashboard = () => {
               </p>
             </div>
 
-            {/* Dashboard View Selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">View as:</span>
+            {/* Dashboard View Selector - Only show if user has multiple roles or multiple clubs */}
+            {(getAvailableRoles().length > 1 || (dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1)) && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">View as:</span>
 
-              {/* Role Selector */}
-              <Select value={dashboardRole} onValueChange={handleRoleChange}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableRoles().map((role) => (
-                    <SelectItem key={role} value={role}>
-                      <div className="flex items-center gap-2">
-                        {role === 'super' && <Crown className="h-3 w-3 text-yellow-600" />}
-                        {role === 'admin' && <Shield className="h-3 w-3 text-blue-600" />}
-                        {role === 'athlete' && <Users className="h-3 w-3 text-green-600" />}
-                        {role === 'super' ? 'Super Admin' : role.charAt(0).toUpperCase() + role.slice(1)}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {/* Role Selector - Only show if user has multiple roles */}
+                {getAvailableRoles().length > 1 && (
+                  <Select value={dashboardRole} onValueChange={handleRoleChange}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableRoles().map((role) => (
+                        <SelectItem key={role} value={role}>
+                          <div className="flex items-center gap-2">
+                            {role === 'super' && <Crown className="h-3 w-3 text-yellow-600" />}
+                            {role === 'admin' && <Shield className="h-3 w-3 text-blue-600" />}
+                            {role === 'athlete' && <Users className="h-3 w-3 text-green-600" />}
+                            {role === 'super' ? 'Super Admin' : role.charAt(0).toUpperCase() + role.slice(1)}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
-              {/* Club Selector (only show if role requires club selection) */}
-              {dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1 && (
-                <Select
-                  value={selectedDashboardClubId || dashboardClubId}
-                  onValueChange={handleClubChange}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAvailableClubsForRole(dashboardRole).map((club) => (
-                      <SelectItem key={club.id} value={club.id}>
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-3 w-3" />
-                          {club.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+                {/* Club Selector (only show if role requires club selection and has multiple clubs) */}
+                {dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1 && (
+                  <Select
+                    value={selectedDashboardClubId || dashboardClubId}
+                    onValueChange={handleClubChange}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableClubsForRole(dashboardRole).map((club) => (
+                        <SelectItem key={club.id} value={club.id}>
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-3 w-3" />
+                            {club.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
