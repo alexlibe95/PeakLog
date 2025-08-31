@@ -59,9 +59,9 @@ const Navigation = () => {
 
     // Check if user is super admin (has super admin access)
     if (isSuper()) {
-      console.log('👑 Super admin detected, navigating to admin page');
-      // For super admins, navigate to admin page (merged interface)
-      navigate('/admin');
+      console.log('👑 Super admin detected, navigating to super admin page');
+      // For super admins, navigate to superadmin page
+      navigate('/superadmin');
       return;
     }
 
@@ -141,9 +141,9 @@ const Navigation = () => {
     const isActualSuperAdmin = userProfile?.role === 'super' || claims?.super_admin === true;
     const isCurrentlySuper = currentRole === 'super';
 
-    // Super admins get super admin interface (merged with regular admin)
+    // Super admins get super admin interface
     if (isActualSuperAdmin || isCurrentlySuper) {
-      items.push({ path: '/admin', label: 'Super Admin', icon: '👑' });
+      items.push({ path: '/superadmin', label: 'Super Admin', icon: '👑' });
     }
 
     // Add club admin options if user has admin memberships (including super admins)
@@ -183,7 +183,7 @@ const Navigation = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-1">
               {navItems.map((item) => (
-                item.path === '/admin' ? (
+                item.path === '/admin' || item.path === '/superadmin' ? (
                   <Button
                     key={item.path}
                     variant={location.pathname === item.path ? "default" : "ghost"}
@@ -274,7 +274,7 @@ const Navigation = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <nav className="flex flex-col space-y-2">
               {navItems.map((item) => (
-                item.path === '/admin' ? (
+                item.path === '/admin' || item.path === '/superadmin' ? (
                   <Button
                     key={item.path}
                     variant={location.pathname === item.path ? "default" : "ghost"}

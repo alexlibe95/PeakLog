@@ -66,13 +66,13 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute adminOnly superOnly>
+              <ProtectedRoute adminOnly>
                 <AdminPage />
               </ProtectedRoute>
             }
           />
           <Route 
-            path="/super" 
+            path="/superadmin" 
             element={
               <ProtectedRoute superOnly>
                 <SuperAdminPage />
