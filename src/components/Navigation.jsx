@@ -46,8 +46,6 @@ const Navigation = () => {
     userProfile,
     logout,
     isSuper,
-    isAdmin,
-    currentClubId,
     currentRole,
     memberships,
     switchRole,

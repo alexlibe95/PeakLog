@@ -49,6 +49,15 @@ const Settings = () => {
     }
   }, [userProfile]);
 
+  // Cleanup preview URL when component unmounts or when previewUrl changes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -67,6 +76,10 @@ const Settings = () => {
         description: "Please select an image file.",
         variant: "destructive",
       });
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
     }
 
@@ -77,7 +90,16 @@ const Settings = () => {
         description: "Please select an image smaller than 5MB.",
         variant: "destructive",
       });
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
+    }
+
+    // Clean up previous preview URL if it exists
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
     }
 
     setSelectedFile(file);
@@ -89,27 +111,18 @@ const Settings = () => {
     if (!selectedFile || !user) return;
 
     setIsUploading(true);
-    try {
-      // Delete existing profile picture if it exists
-      if (userProfile?.profilePicture) {
-        try {
-          const oldImageRef = ref(storage, userProfile.profilePicture);
-          await deleteObject(oldImageRef);
-        } catch (error) {
-          console.error('Error deleting old image:', error);
-          // Continue with upload even if delete fails
-        }
-      }
+    let uploadedImageRef = null;
 
-      // Upload new image
+    try {
+      // Upload new image first
       const fileName = `profile-pictures/${user.uid}/${Date.now()}-${selectedFile.name}`;
-      const storageRef = ref(storage, fileName);
-      await uploadBytes(storageRef, selectedFile);
+      uploadedImageRef = ref(storage, fileName);
+      await uploadBytes(uploadedImageRef, selectedFile);
 
       // Get download URL
-      const downloadURL = await getDownloadURL(storageRef);
+      const downloadURL = await getDownloadURL(uploadedImageRef);
 
-      // Update user profile with new image URL
+      // Update user profile in Firestore
       await updateDoc(doc(db, 'users', user.uid), {
         profilePicture: downloadURL,
         updatedAt: new Date()
@@ -120,6 +133,20 @@ const Settings = () => {
         ...userProfile,
         profilePicture: downloadURL
       });
+
+      // Delete old image after successful upload and update
+      if (userProfile?.profilePicture && userProfile.profilePicture !== downloadURL) {
+        try {
+          // Extract the path from the old URL to create a proper reference
+          const oldImageUrl = new URL(userProfile.profilePicture);
+          const oldImagePath = decodeURIComponent(oldImageUrl.pathname.split('/o/')[1].split('?')[0]);
+          const oldImageRef = ref(storage, oldImagePath);
+          await deleteObject(oldImageRef);
+        } catch (error) {
+          console.error('Error deleting old image:', error);
+          // Don't fail the whole operation if old image deletion fails
+        }
+      }
 
       // Clean up
       setSelectedFile(null);
@@ -134,9 +161,19 @@ const Settings = () => {
       });
     } catch (error) {
       console.error('Error uploading profile picture:', error);
+
+      // If upload failed and we created a storage reference, try to clean it up
+      if (uploadedImageRef) {
+        try {
+          await deleteObject(uploadedImageRef);
+        } catch (cleanupError) {
+          console.error('Error cleaning up failed upload:', cleanupError);
+        }
+      }
+
       toast({
         title: "Upload Failed",
-        description: "Failed to upload profile picture. Please try again.",
+        description: error.message || "Failed to upload profile picture. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -469,16 +506,6 @@ const Settings = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {/* Email */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Email Address</span>
-                  </div>
-                  <span className="text-sm font-medium">{user?.email || 'N/A'}</span>
-                </div>
-
-                <Separator />
 
                 {/* Roles */}
                 <div className="space-y-3">
@@ -516,10 +543,6 @@ const Settings = () => {
                           ? `${userProfile.firstName} ${userProfile.lastName}`
                           : 'Not set'}
                       </p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Sport</span>
-                      <p className="text-sm font-medium">{userProfile?.sport || 'Not set'}</p>
                     </div>
                   </div>
                 </div>

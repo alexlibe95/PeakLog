@@ -5,7 +5,7 @@
   <br><br>
 </div>
 
-A production-level training and performance tracking web application for sports teams, originally designed for canoe/kayak groups but generic enough for any endurance sport team (rowing, swimming, running, etc.).
+A comprehensive training management and performance tracking platform designed for sports teams and coaches. Built for endurance sports like canoe/kayak, rowing, swimming, and running, with advanced features for athlete management, training scheduling, performance testing, and progress tracking.
 
 🌐 **Live Demo**: [https://peaklog-a10b4.web.app](https://peaklog-a10b4.web.app)
 
@@ -27,23 +27,44 @@ A production-level training and performance tracking web application for sports 
 ### 🔐 Authentication & Security
 - **🪄 Passwordless Magic Link Login** - Secure, password-free authentication via email links
 - **🔑 Traditional Email/Password** - Classic login option available
-- **👥 Role-Based Access Control** - Admin and athlete permissions
-- **🛡️ Firebase Security Rules** - Server-side data protection
+- **👥 Multi-Level Role-Based Access Control** - Super Admin, Club Admin, and Athlete permissions
+- **🛡️ Firebase Security Rules** - Comprehensive server-side data protection
 - **🔒 Environment Variable Protection** - Secure API key management
 
-### 📊 Training Management
-- **📝 Training Logs** - Comprehensive session logging with type, duration, notes
-- **🏆 Personal Records** - Track PRs across different sports and activities
-- **📅 Attendance Tracking** - Present/excused/unexcused status management
-- **🎯 Goal Setting** - Individual athlete goal creation and tracking
-- **📈 Progress Visualization** - Training statistics and progress tracking
+### 📅 Training Scheduling & Management
+- **📆 Interactive Training Calendar** - Monthly calendar view with attendance tracking
+- **🏖️ Vacation & Cancellation Management** - Pre-schedule training cancellations with reasons
+- **⏰ Weekly Schedule Management** - Set recurring training days and times
+- **📱 Quick Attendance** - One-click attendance marking for coaches
+- **📊 Training History** - Complete log of past training sessions and attendance
+
+### 🏆 Performance Testing & Tracking
+- **📏 Test Limits System** - Record athlete performance peaks for specific training days
+- **📊 Performance Categories** - Manage custom categories (Bench Press, 1000m Time, etc.)
+- **📈 Progress Charts** - Visual progress tracking with line graphs for each category
+- **🎯 Goal Integration** - Automatic goal updates based on test performance
+- **🏅 Personal Best Tracking** - Automatic PB updates from test results
+
+### 👥 Athlete Management
+- **👤 Member Management** - Add, remove, and manage club members
+- **📋 Personal Records & Goals** - Track individual athlete performance and objectives
+- **📱 Mobile-Optimized Views** - Responsive card layouts for mobile devices
+- **👨‍👩‍👧‍👦 Family Accounts** - Multiple athletes per account support
+- **📊 Performance Analytics** - Individual athlete progress tracking
+
+### 💬 Communication & Messaging
+- **📢 Club Announcements** - Coaches can post messages visible to all athletes
+- **🏠 Dashboard Integration** - Messages displayed on athlete dashboard
+- **📅 Training Notifications** - Cancelled training alerts with reasons
+- **⏰ Today's Training Status** - Real-time training state (upcoming/in-progress/completed)
 
 ### 🎨 User Experience
 - **🌟 Modern UI** - Beautiful, responsive design with ShadCN components
-- **📱 Mobile-First** - Optimized for all device sizes
+- **📱 Mobile-First** - Optimized for all device sizes and screen orientations
 - **⚡ Fast Performance** - Vite-powered development and optimized builds
 - **🔄 Real-time Updates** - Live data synchronization with Firestore
 - **🎭 Professional Design** - Clean, intuitive interface for athletes and coaches
+- **🌓 Dark/Light Theme Ready** - Extensible theming system
 
 ## 🚀 Getting Started
 
@@ -110,15 +131,6 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    
-    // Training logs - users can CRUD their own, admins can read all
-    match /trainingLogs/{logId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
   }
 }
 ```
@@ -137,22 +149,40 @@ Visit `http://localhost:5180` to see the app!
 src/
 ├── components/          # Reusable UI components
 │   ├── ui/             # ShadCN UI components (Button, Input, Card, etc.)
-│   ├── features/       # Feature-specific components
-│   ├── Navigation.jsx  # Global navigation component
+│   ├── features/       # Feature-specific components (Goals, Records, etc.)
+│   ├── Navigation.jsx  # Global navigation with responsive burger menu
 │   ├── PasswordlessLogin.jsx  # Magic link authentication
-│   └── ProtectedRoute.jsx     # Route protection wrapper
+│   ├── ProtectedRoute.jsx     # Route protection wrapper
+│   ├── TrainingCalendar.jsx   # Interactive monthly training calendar
+│   ├── VacationManager.jsx    # Training cancellation management
+│   ├── AdminMessageManager.jsx # Club announcement system
+│   └── icons/          # Custom SVG icon components
 ├── pages/              # Route components
-│   ├── Login.jsx       # Login page with dual auth options
+│   ├── Dashboard.jsx   # Main dashboard with role-based views
+│   ├── Training.jsx    # Athlete training interface
+│   ├── TrainingLogs.jsx # Training history and logging
+│   ├── TrainingManagement.jsx # Admin training management
+│   ├── AthleteManagement.jsx # Athlete performance management
+│   ├── CategoryManagement.jsx # Performance category management
+│   ├── Testing.jsx     # Performance testing interface
+│   ├── MyProgress.jsx  # Athlete progress charts
+│   ├── Login.jsx       # Authentication page
 │   ├── Register.jsx    # User registration
+│   ├── Settings.jsx    # User profile and settings
 │   ├── AuthCallback.jsx # Email link verification handler
-│   ├── Dashboard.jsx   # Main dashboard
-│   └── TrainingLogs.jsx # Training session management
+│   └── SuperAdminPage.jsx # Super admin dashboard
 ├── context/            # React context providers
-│   └── AuthContext.jsx # Authentication state management
-├── lib/                # Configuration and utilities
-│   └── firebase.js     # Firebase initialization
+│   └── AuthContext.jsx # Authentication and user state management
 ├── services/           # API and data services
-│   └── trainingService.js # Firestore training data operations
+│   ├── clubService.js          # Club and member management
+│   ├── trainingService.js      # Training data operations
+│   ├── athletePerformanceService.js # Performance tracking
+│   ├── performanceCategoryService.js # Category management
+│   └── testService.js          # Performance testing operations
+├── lib/                # Configuration and utilities
+│   ├── firebase.js     # Firebase initialization
+│   └── utils.js        # Utility functions
+├── hooks/              # Custom React hooks
 └── styles/             # Global styles
     └── index.css       # TailwindCSS + custom styles
 ```
@@ -180,19 +210,31 @@ firebase login       # Authenticate with Firebase CLI
 
 ## 🎯 User Roles
 
-### Athlete
-- View personal dashboard
-- Log training sessions
-- Track personal records
-- Set and manage goals
-- View attendance status
+### 👤 Athlete
+- **📊 Dashboard Access** - Personal dashboard with training status and messages
+- **📝 Training Logging** - Log training sessions with type, duration, and notes
+- **🏆 Personal Records** - Track PRs and view performance history
+- **🎯 Goal Management** - Set and track personal performance goals
+- **📈 Progress Charts** - View performance trends with interactive charts
+- **📅 Attendance Tracking** - View training attendance and schedule
+- **💬 Message Center** - Receive coach announcements and updates
 
-### Admin
-- All athlete capabilities
-- Manage team members
-- View all athlete data
-- Create attendance records
-- Team analytics and reports
+### 👨‍🏫 Club Admin (Coach)
+- **👥 Member Management** - Add/remove athletes, manage club membership
+- **📅 Training Calendar** - Interactive calendar with attendance management
+- **🏖️ Vacation Planning** - Schedule training cancellations with reasons
+- **⏰ Schedule Management** - Set weekly training schedules
+- **📊 Performance Testing** - Record athlete test results and manage categories
+- **📋 Athlete Oversight** - View all athlete data, records, and goals
+- **📢 Communication** - Post messages and announcements for athletes
+- **📈 Team Analytics** - Monitor team performance and attendance trends
+
+### 👑 Super Admin
+- **🏢 Multi-Club Management** - Access and manage multiple clubs
+- **👤 User Administration** - Manage user roles and permissions across clubs
+- **📊 System Analytics** - View system-wide statistics and usage data
+- **⚙️ System Configuration** - Configure system settings and defaults
+- **🔧 Administrative Tools** - Advanced system management features
 
 ## 🔐 Security
 
@@ -263,58 +305,107 @@ Set these in your deployment environment:
 ```bash
 git checkout -b feature/your-feature
 npm run lint:fix && npm run format
+npm run build  # Test production build
 git commit -m "feat: your feature description"
 git push origin feature/your-feature
 # Automatic preview deployment via GitHub Actions
 ```
 
+### Development Best Practices
+- **🔧 Pre-commit Hooks** - Run lint and format before committing
+- **📱 Mobile Testing** - Test all features on mobile devices
+- **🎯 Feature Flags** - Use feature flags for gradual rollouts
+- **📊 Performance Monitoring** - Monitor bundle size and loading times
+- **🧪 Error Handling** - Implement comprehensive error boundaries
+- **♿ Accessibility** - Ensure WCAG compliance for all components
+- **🔒 Security First** - Follow Firebase security best practices
+
 ## 📋 Roadmap
 
 ### 🎯 Core Features (Implemented)
-- [x] **Magic Link Authentication** - Passwordless login via email
-- [x] **Traditional Authentication** - Email/password backup
-- [x] **Role-Based Access** - Admin and athlete permissions
-- [x] **Training Logs** - Session logging with types and notes
-- [x] **Personal Records** - PR tracking system
-- [x] **Modern UI** - ShadCN + TailwindCSS design system
-- [x] **Firebase Integration** - Auth, Firestore, Hosting
-- [x] **CI/CD Pipeline** - GitHub Actions auto-deployment
+- [x] **Multi-Level Authentication** - Magic link + traditional login with Super Admin/Admin/Athlete roles
+- [x] **Interactive Training Calendar** - Monthly calendar with attendance tracking and vacation management
+- [x] **Performance Testing System** - Test limits recording with automatic PB/goal updates
+- [x] **Progress Visualization** - Interactive charts with Recharts library
+- [x] **Communication System** - Club announcements and training notifications
+- [x] **Mobile-Responsive Design** - Optimized for all device sizes
+- [x] **Real-time Data Sync** - Live updates with Firestore
+- [x] **Comprehensive Athlete Management** - Records, goals, and performance tracking
+- [x] **Category Management** - Custom performance categories with unit handling
+- [x] **Training Scheduling** - Weekly schedules with cancellation support
 
 ### 🚀 Future Enhancements
-- [ ] **Advanced Analytics** - Performance trends and insights
-- [ ] **Team Management** - Coach dashboard and team overview
-- [ ] **Data Export** - CSV/PDF export functionality
-- [ ] **Mobile App** - React Native companion app
-- [ ] **Training Plans** - Structured workout templates
-- [ ] **Performance Charts** - Interactive data visualizations
-- [ ] **Team Communication** - In-app messaging and notifications
-- [ ] **Offline Support** - PWA capabilities for offline usage
+- [ ] **Advanced Analytics Dashboard** - Team performance trends and comparative analysis
+- [ ] **Data Export/Import** - CSV/PDF export and bulk data operations
+- [ ] **Mobile App** - React Native companion app for iOS/Android
+- [ ] **Training Plan Templates** - Pre-built workout programs and progression plans
+- [ ] **Team Communication** - Direct messaging between coaches and athletes
+- [ ] **Offline Support** - PWA capabilities for offline training logging
+- [ ] **Integration APIs** - Connect with fitness devices and external systems
+- [ ] **Advanced Reporting** - Custom reports and performance insights
+- [ ] **Team Challenges** - Create and track team-wide performance challenges
+- [ ] **Nutrition Tracking** - Dietary logging and nutrition goal setting
 
 ## 🛠️ Technical Highlights
 
 ### Modern React Patterns
-- **Context API** for global state management
-- **Custom Hooks** for reusable logic
-- **Component Composition** with ShadCN UI
-- **TypeScript-Ready** architecture (JS with type-safe patterns)
+- **Context API** for global state management with multi-role authentication
+- **Custom Hooks** for reusable logic across components
+- **Component Composition** with ShadCN UI component library
+- **TypeScript-Ready** architecture with type-safe patterns
+- **Responsive Design** with mobile-first approach and TailwindCSS
+
+### Advanced UI/UX Features
+- **Interactive Calendar** - Custom calendar component with date manipulation
+- **Data Visualization** - Recharts integration for performance tracking
+- **Real-time Messaging** - Live communication between coaches and athletes
+- **Role-Based UI** - Dynamic interfaces based on user permissions
+- **Progressive Web App Ready** - Service worker and offline capabilities
 
 ### Firebase Integration
 - **Firebase v9+ SDK** - Latest modular Firebase implementation
 - **Real-time Data** - Live updates with Firestore subscriptions
-- **Security Rules** - Server-side data protection
-- **Cloud Functions Ready** - Architecture supports serverless functions
+- **Advanced Security Rules** - Multi-level access control for clubs and users
+- **Cloud Storage** - Profile picture uploads with automatic cleanup
+- **Batch Operations** - Efficient data operations with Firestore batches
 
 ### Performance Optimizations
-- **Vite Build Tool** - Lightning-fast development and optimized builds
-- **Code Splitting** - Automatic chunking for faster loading
-- **Tree Shaking** - Minimal bundle size
-- **CDN Deployment** - Firebase global CDN hosting
+- **Vite Build Tool** - Lightning-fast development and optimized production builds
+- **Code Splitting** - Automatic chunking for faster loading times
+- **Tree Shaking** - Minimal bundle size with unused code elimination
+- **CDN Deployment** - Firebase global CDN hosting for worldwide performance
+- **Image Optimization** - Efficient image handling and lazy loading
 
 ### Developer Experience
 - **Hot Module Replacement** - Instant development feedback
-- **ESLint + Prettier** - Automated code quality
-- **GitHub Actions** - Automated testing and deployment
-- **Environment Management** - Secure credential handling
+- **ESLint + Prettier** - Automated code quality and formatting
+- **GitHub Actions** - Automated testing and deployment pipeline
+- **Environment Management** - Secure credential handling with Vite
+- **Comprehensive Error Handling** - Robust error boundaries and user feedback
+
+## 🏗️ Architecture Overview
+
+### Key Components
+- **🔄 AuthContext** - Centralized authentication state with role management
+- **📅 TrainingCalendar** - Interactive calendar with attendance and scheduling
+- **📊 MyProgress** - Athlete progress visualization with Recharts
+- **🧪 Testing System** - Performance testing with automatic PB updates
+- **💬 MessageManager** - Real-time communication system
+- **📱 Responsive Navigation** - Mobile-first navigation with role-based menus
+
+### Data Flow Patterns
+- **Real-time Subscriptions** - Firestore listeners for live data updates
+- **Optimistic Updates** - Immediate UI feedback with server sync
+- **Batch Operations** - Efficient bulk data operations
+- **Error Boundaries** - Graceful error handling and user feedback
+- **Loading States** - Comprehensive loading indicators and skeleton screens
+
+### Security Architecture
+- **Role-Based Access Control** - Multi-level permissions (Super Admin → Admin → Athlete)
+- **Firestore Security Rules** - Server-side data validation and access control
+- **Input Validation** - Client and server-side validation
+- **Secure File Uploads** - Safe profile picture handling with cleanup
+- **Environment Security** - Protected API keys and configuration
 
 ## 📄 License
 
@@ -324,4 +415,4 @@ This is a private portfolio project. All rights reserved.
 
 **🏔️ Built with ❤️ for the sports community**
 
-**💡 Showcasing modern web development practices with React, Firebase, and cutting-edge authentication patterns**
+**💡 Showcasing modern web development practices with React, Firebase, and comprehensive training management features**
