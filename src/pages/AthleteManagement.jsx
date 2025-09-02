@@ -47,7 +47,6 @@ import { useToast } from '@/components/ui/toast-context.jsx';
 import { clubService } from '@/services/clubService';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
 import { athletePerformanceService } from '@/services/athletePerformanceService';
-import { testService } from '@/services/testService';
 import { Shield, Users, Plus, Edit, Trash2, Target, Trophy, Calendar } from 'lucide-react';
 
 // Static mapping of category types to value comparison logic
@@ -1139,14 +1138,12 @@ function AthleteManagement() {
                             const now = new Date();
                             const daysLeft = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
 
-                            let progress = 0;
                             let status = 'pending';
                             let statusColor = 'bg-gray-100 text-gray-700';
 
                             if (currentRecord) {
                               const higherIsBetter = isHigherBetter(goal.categoryId);
                               if (higherIsBetter) {
-                                progress = Math.min((currentRecord.value / goal.targetValue) * 100, 100);
                                 if (currentRecord.value >= goal.targetValue) {
                                   status = 'achieved';
                                   statusColor = 'bg-green-100 text-green-700';
@@ -1158,7 +1155,6 @@ function AthleteManagement() {
                                   statusColor = 'bg-blue-100 text-blue-700';
                                 }
                               } else {
-                                progress = Math.min((goal.targetValue / currentRecord.value) * 100, 100);
                                 if (currentRecord.value <= goal.targetValue) {
                                   status = 'achieved';
                                   statusColor = 'bg-green-100 text-green-700';

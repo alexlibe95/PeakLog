@@ -5,7 +5,6 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
-import TrainingLogs from './pages/TrainingLogs';
 import Training from './pages/Training';
 import TrainingManagement from './pages/TrainingManagement';
 import Settings from './pages/Settings';
@@ -34,14 +33,6 @@ function App() {
                 <Dashboard />
               </ProtectedRoute>
             } 
-          />
-          <Route
-            path="/training-logs"
-            element={
-              <ProtectedRoute>
-                <TrainingLogs />
-              </ProtectedRoute>
-            }
           />
           <Route
             path="/training"

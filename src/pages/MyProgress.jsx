@@ -14,8 +14,6 @@ const MyProgress = () => {
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState([]);
-  const [testData, setTestData] = useState([]);
   const [chartData, setChartData] = useState({});
 
   // Get athlete membership
@@ -35,7 +33,6 @@ const MyProgress = () => {
     try {
       // Load categories for the club
       const clubCategories = await performanceCategoryService.getClubCategories(effectiveClubId);
-      setCategories(clubCategories);
 
       // Load test sessions with results for this athlete
       const athleteTestSessions = await testService.getTestSessionsForAthlete(user.uid, effectiveClubId);
@@ -101,7 +98,6 @@ const MyProgress = () => {
       });
 
       setChartData(chartDataObj);
-      setTestData(athleteTestSessions);
 
     } catch (error) {
       console.error('Error loading progress data:', error);

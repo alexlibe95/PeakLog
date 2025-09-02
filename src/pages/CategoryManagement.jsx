@@ -49,7 +49,7 @@ const UNIT_OPTIONS = [
 ];
 
 const CategoryManagement = () => {
-  const { user, currentClubId, memberships } = useAuth();
+  const { currentClubId } = useAuth();
   const { toast } = useToast();
 
   const [categories, setCategories] = useState([]);
@@ -65,7 +65,6 @@ const CategoryManagement = () => {
   });
 
   // Get admin memberships
-  const adminMemberships = (memberships || []).filter(m => m.role === 'admin');
   const effectiveClubId = currentClubId;
 
   // Load categories
@@ -109,7 +108,7 @@ const CategoryManagement = () => {
           description: `"${formData.name}" has been updated`
         });
       } else {
-        const newCategory = await performanceCategoryService.createCategory(effectiveClubId, formData);
+        await performanceCategoryService.createCategory(effectiveClubId, formData);
         toast({
           title: 'Category created successfully',
           description: `"${formData.name}" has been added to your categories`
