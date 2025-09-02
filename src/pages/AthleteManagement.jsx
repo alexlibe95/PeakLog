@@ -47,7 +47,7 @@ import { useToast } from '@/components/ui/toast-context.jsx';
 import { clubService } from '@/services/clubService';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
 import { athletePerformanceService } from '@/services/athletePerformanceService';
-import { Shield, Users, Plus, Edit, Trash2, Target, Trophy, Calendar, TrendingUp } from 'lucide-react';
+import { Shield, Users, Plus, Edit, Trash2, Target, Trophy, Calendar } from 'lucide-react';
 
 function AthleteManagement() {
   const { userProfile, currentClubId, memberships, user, isAdmin } = useAuth();
@@ -67,23 +67,23 @@ function AthleteManagement() {
   // State management
   const [selectedAdminClubId, setSelectedAdminClubId] = useState('');
   const [athletes, setAthletes] = useState([]);
-  const [categories, setCategories] = useState([]);
+
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [selectedAthleteRecords, setSelectedAthleteRecords] = useState([]);
   const [selectedAthleteGoals, setSelectedAthleteGoals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState([]);
 
   // Dialog states
-  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null);
+
   const [editingRecord, setEditingRecord] = useState(null);
   const [editingGoal, setEditingGoal] = useState(null);
 
   // Form states
-  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', unit: '' });
   const [recordForm, setRecordForm] = useState({ categoryId: '', value: '', notes: '', date: '' });
   const [goalForm, setGoalForm] = useState({ categoryId: '', targetValue: '', targetDate: '', notes: '' });
 
@@ -99,6 +99,18 @@ function AthleteManagement() {
   };
 
   const effectiveClubId = getEffectiveClubId();
+
+  // Load categories
+  const loadCategories = async () => {
+    if (!effectiveClubId) return;
+
+    try {
+      const clubCategories = await performanceCategoryService.getClubCategories(effectiveClubId);
+      setCategories(clubCategories);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
 
   // Initialize selected club for regular admins
   useEffect(() => {
@@ -144,23 +156,7 @@ function AthleteManagement() {
     }
   };
 
-  const loadCategories = async () => {
-    if (!effectiveClubId) return;
-    
-    try {
-      console.log('🔍 Loading categories for club:', effectiveClubId);
-      const clubCategories = await performanceCategoryService.getClubCategories(effectiveClubId);
-      console.log('✅ Categories loaded:', clubCategories);
-      setCategories(clubCategories);
-    } catch (error) {
-      console.error('❌ Error loading categories:', error);
-      toast({
-        title: 'Error loading performance categories',
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  };
+
 
   const loadAthleteData = async () => {
     if (!selectedAthlete || !effectiveClubId) return;
@@ -181,77 +177,11 @@ function AthleteManagement() {
     }
   };
 
-  // Category management
-  const handleCreateCategory = async () => {
-    if (!effectiveClubId || !categoryForm.name.trim()) return;
-    
-    setSaving(true);
-    try {
-      console.log('🔧 Creating category:', { effectiveClubId, categoryForm });
-      const newCategory = await performanceCategoryService.createCategory(effectiveClubId, categoryForm);
-      console.log('✅ Category created:', newCategory);
-      
-      await loadCategories();
-      setCategoryForm({ name: '', description: '', unit: '' });
-      setCategoryDialogOpen(false);
-      toast({
-        title: 'Category created successfully',
-        description: `"${categoryForm.name}" has been added to your categories`
-      });
-    } catch (error) {
-      console.error('❌ Error creating category:', error);
-      toast({
-        title: 'Error creating category',
-        description: error.message,
-        variant: 'destructive'
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
 
-  const handleUpdateCategory = async () => {
-    if (!editingCategory || !categoryForm.name.trim()) return;
-    
-    setSaving(true);
-    try {
-      await performanceCategoryService.updateCategory(editingCategory.id, categoryForm);
-      await loadCategories();
-      setEditingCategory(null);
-      setCategoryForm({ name: '', description: '', unit: '' });
-      setCategoryDialogOpen(false);
-      toast({
-        title: 'Category updated successfully'
-      });
-    } catch (error) {
-      console.error('Error updating category:', error);
-      toast({
-        title: 'Error updating category',
-        variant: 'destructive'
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
 
-  const handleDeleteCategory = async (categoryId) => {
-    setSaving(true);
-    try {
-      await performanceCategoryService.deleteCategory(categoryId);
-      await loadCategories();
-      toast({
-        title: 'Category deleted successfully'
-      });
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      toast({
-        title: 'Error deleting category',
-        variant: 'destructive'
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+
+
+
 
   // Personal record management
   const handleCreateRecord = async () => {
@@ -401,20 +331,7 @@ function AthleteManagement() {
   };
 
   // Helper functions
-  const openCategoryDialog = (category = null) => {
-    if (category) {
-      setEditingCategory(category);
-      setCategoryForm({
-        name: category.name,
-        description: category.description || '',
-        unit: category.unit || ''
-      });
-    } else {
-      setEditingCategory(null);
-      setCategoryForm({ name: '', description: '', unit: '' });
-    }
-    setCategoryDialogOpen(true);
-  };
+
 
   const openRecordDialog = (record = null) => {
     if (record) {
@@ -493,85 +410,7 @@ function AthleteManagement() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Performance Categories Section */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      Performance Categories
-                    </CardTitle>
-                    <Button size="sm" onClick={() => openCategoryDialog()} className="w-full sm:w-auto">
-                      <Plus className="h-4 w-4 mr-1" />
-                      <span className="sm:hidden">Add Category</span>
-                      <span className="hidden sm:inline">Add</span>
-                    </Button>
-                  </div>
-                <CardDescription>
-                  Manage exercise categories like bench press, 1000m time, etc.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {categories.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No categories yet</p>
-                    <p className="text-sm mt-1">Create your first performance category</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {categories.map((category) => (
-                      <div key={category.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium truncate">{category.name}</div>
-                          {category.unit && (
-                            <div className="text-sm text-muted-foreground">Unit: {category.unit}</div>
-                          )}
-                          {category.description && (
-                            <div className="text-sm text-muted-foreground line-clamp-2">{category.description}</div>
-                          )}
-                        </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          <Button size="sm" variant="ghost" onClick={() => openCategoryDialog(category)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="ghost">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="w-[95vw] max-w-md">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Category</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{category.name}"? This will also delete all related records and goals.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                                <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteCategory(category.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Athletes and Performance Data Section */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6">
             {/* Athletes List */}
             <Card>
               <CardHeader>
@@ -902,66 +741,11 @@ function AthleteManagement() {
               </div>
             )}
           </div>
-        </div>
+        </main>
 
         {/* Dialogs */}
         
-        {/* Category Dialog */}
-        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingCategory ? 'Edit Category' : 'Create Performance Category'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingCategory 
-                  ? 'Update the performance category details'
-                  : 'Create a new performance category like "Bench Press" or "1000m Time"'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="categoryName">Category Name</Label>
-                <Input
-                  id="categoryName"
-                  placeholder="e.g., Bench Press, 1000m Time"
-                  value={categoryForm.name}
-                  onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="categoryUnit">Unit (optional)</Label>
-                <Input
-                  id="categoryUnit"
-                  placeholder="e.g., kg, minutes, seconds"
-                  value={categoryForm.unit}
-                  onChange={(e) => setCategoryForm(prev => ({ ...prev, unit: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="categoryDescription">Description (optional)</Label>
-                <Textarea
-                  id="categoryDescription"
-                  placeholder="Additional details about this category"
-                  value={categoryForm.description}
-                  onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={editingCategory ? handleUpdateCategory : handleCreateCategory}
-                disabled={saving || !categoryForm.name.trim()}
-              >
-                {saving ? 'Saving...' : (editingCategory ? 'Update' : 'Create')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
 
         {/* Record Dialog */}
         <Dialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen}>
@@ -1118,7 +902,6 @@ function AthleteManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </main>
     </div>
   );
 }
