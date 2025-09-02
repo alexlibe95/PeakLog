@@ -373,19 +373,53 @@ export const testService = {
   // ===== UTILITY FUNCTIONS =====
 
   /**
+   * Get test sessions for a specific athlete
+   */
+  async getTestSessionsForAthlete(athleteId, clubId) {
+    try {
+      // Get all test sessions for the club
+      const testSessions = await this.getClubTestSessions(clubId, 100); // Get more to filter
+
+      // Filter sessions where the athlete has results
+      const athleteSessions = [];
+
+      for (const session of testSessions) {
+        try {
+          const results = await this.getTestResults(session.id);
+
+          // Check if this athlete has a result in this session
+          const athleteResult = results.find(result => result.athleteId === athleteId);
+
+          if (athleteResult) {
+            athleteSessions.push({
+              ...session,
+              results: [athleteResult], // Only include this athlete's result
+              athleteResult: athleteResult
+            });
+          }
+        } catch (error) {
+          console.error(`Error getting results for session ${session.id}:`, error);
+        }
+      }
+
+      return athleteSessions;
+    } catch (error) {
+      console.error('Error getting test sessions for athlete:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Get test sessions with results and athlete info
    */
   async getTestSessionsWithResults(clubId, limitCount = 20) {
     try {
-      console.log('🏟️ Getting test sessions for club:', clubId);
       const testSessions = await this.getClubTestSessions(clubId, limitCount);
-      console.log('📊 Found test sessions:', testSessions.length);
       const enrichedTests = [];
 
       for (const testSession of testSessions) {
         // Get results for this test
         const results = await this.getTestResults(testSession.id);
-        console.log('📈 Test results for session', testSession.id + ':', results.length, 'results');
 
         // Get category info
         const categoryDoc = await getDoc(doc(db, 'clubs', clubId, 'categories', testSession.categoryId));
@@ -395,33 +429,24 @@ export const testService = {
         const enrichedResults = [];
         for (const result of results) {
           try {
-            console.log('🔍 Looking for athlete:', result.athleteId, 'in club:', clubId);
             // First get the membership data from the club
             const membershipDoc = await getDoc(doc(db, 'clubs', clubId, 'members', result.athleteId));
-            console.log('📄 Membership doc exists:', membershipDoc.exists());
 
             let athleteData = { email: null };
 
             if (membershipDoc.exists()) {
               const membershipData = membershipDoc.data();
-              console.log('👥 Membership data:', JSON.stringify(membershipData, null, 2));
 
               // Now get the actual user data from the users collection
-              console.log('🔍 Looking for user data in users collection for ID:', result.athleteId);
               const userDoc = await getDoc(doc(db, 'users', result.athleteId));
-              console.log('👤 User doc exists:', userDoc.exists());
 
               if (userDoc.exists()) {
                 const userData = userDoc.data();
-                console.log('👤 Raw user data:', JSON.stringify(userData, null, 2));
                 athleteData = userData;
               } else {
-                console.log('❌ User document not found in users collection');
                 // Fallback to membership data if user data not found
                 athleteData = membershipData;
               }
-            } else {
-              console.log('❌ Membership document not found');
             }
 
             // Try different name combinations and fall back to email
@@ -442,22 +467,13 @@ export const testService = {
               athleteName = `Athlete ${result.athleteId.slice(-4)}`;
             }
 
-            console.log('🏷️ Final athlete name result:', {
-              athleteId: result.athleteId,
-              athleteName,
-              hasFirstName: !!athleteData.firstName,
-              hasLastName: !!athleteData.lastName,
-              hasEmail: !!athleteData.email,
-              emailValue: athleteData.email
-            });
-
             enrichedResults.push({
               ...result,
               athleteName: athleteName,
               email: athleteData.email || '',
             });
           } catch (error) {
-            console.error('❌ Error getting athlete data for ID:', result.athleteId, error);
+            console.error('Error getting athlete data for ID:', result.athleteId, error);
             enrichedResults.push({
               ...result,
               athleteName: `Athlete ${result.athleteId.slice(-4)}`, // Show last 4 chars of ID

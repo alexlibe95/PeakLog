@@ -22,7 +22,9 @@ export const logger = {
   },
 
   log: (...args) => {
-    if (LOG_LEVELS.LOG) console.log(...args);
+    if (LOG_LEVELS.LOG) {
+      // console.log removed
+    }
   },
 
   debug: (...args) => {
@@ -43,19 +45,19 @@ export const setConsoleLevel = (level, enabled) => {
 export const enableDevLogging = () => {
   LOG_LEVELS.WARN = true;
   LOG_LEVELS.LOG = true;
-  console.log('🔧 Development logging enabled');
+  // Development logging enabled
 };
 
 // Function to disable all non-error logging
 export const quietMode = () => {
   LOG_LEVELS.WARN = false;
   LOG_LEVELS.LOG = false;
-  console.log('🤫 Quiet mode enabled - only errors will be shown');
+  // Quiet mode enabled - only errors will be shown
 };
 
 // Function to test if the app works despite extension errors
 export const testAppFunctionality = () => {
-  console.log('🧪 Testing application functionality...');
+  // Testing application functionality
 
   // Test basic functionality
   const tests = [
@@ -74,40 +76,16 @@ export const testAppFunctionality = () => {
   tests.forEach(({ name, test }) => {
     try {
       const result = test();
-      console.log(`✅ ${name}: ${result ? 'Working' : 'Failed'}`);
+      // Test completed
     } catch (e) {
-      console.log(`❌ ${name}: Error - ${e.message}`);
+      // Test failed with error
     }
   });
 
-  console.log('🎉 Test complete! Extension errors don\'t affect functionality.');
+  // Test complete
 };
 
 // Function to show extension error explanation
 export const explainExtensionErrors = () => {
-  console.log(`
-🔍 About Extension Errors:
-
-These errors you see in the console are NOT from your application.
-They come from browser extensions like:
-
-• Password managers (LastPass, Bitwarden)
-• Ad blockers (uBlock Origin, AdBlock Plus)
-• Security extensions (HTTPS Everywhere)
-• Developer tools extensions
-• Shopping assistants (Honey, Capital One Shopping)
-
-Why they happen:
-• Extensions try to communicate with websites
-• Sometimes the communication fails
-• This creates harmless console errors
-• Your app functionality is unaffected
-
-What we do:
-• Suppress these specific known-harmless errors
-• Keep all real application errors visible
-• Provide this explanation in development mode
-
-Your application is working perfectly! 🎉
-  `);
+  // Extension error explanation functionality removed
 };

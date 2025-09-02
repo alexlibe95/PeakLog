@@ -71,7 +71,7 @@ if (typeof window !== 'undefined') {
   // Reduce console noise in production for warnings and logs
   if (!IS_DEVELOPMENT) {
     const originalConsoleWarn = console.warn;
-    const originalConsoleLog = console.log;
+    // const originalConsoleLog = console.log;
 
     console.warn = (...args) => {
       const message = args.join(' ');
@@ -86,18 +86,7 @@ if (typeof window !== 'undefined') {
       }
     };
 
-    console.log = (...args) => {
-      // Suppress most console.log in production unless critical
-      const message = args.join(' ');
-      if (
-        message.includes('Error') ||
-        message.includes('Firebase') ||
-        message.includes('Auth') ||
-        message.includes('Failed')
-      ) {
-        originalConsoleLog.apply(console, args);
-      }
-    };
+    // console.log override removed
   }
 }
 

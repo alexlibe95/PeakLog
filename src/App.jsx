@@ -14,6 +14,7 @@ import SuperAdminPage from './pages/SuperAdminPage';
 import AthleteManagement from './pages/AthleteManagement';
 import CategoryManagement from './pages/CategoryManagement';
 import Testing from './pages/Testing';
+import MyProgress from './pages/MyProgress';
 
 function App() {
   return (
@@ -47,6 +48,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Training />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-progress"
+            element={
+              <ProtectedRoute>
+                <MyProgress />
               </ProtectedRoute>
             }
           />

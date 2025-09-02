@@ -22,7 +22,7 @@ export const performanceCategoryService = {
         throw new Error('Category name is required');
       }
 
-      console.log('🔧 Creating category in Firebase:', { clubId, categoryData });
+      // console.log removed('🔧 Creating category in Firebase:', { clubId, categoryData });
       
       const categoryRef = doc(collection(db, 'performanceCategories'));
       const category = {
@@ -37,7 +37,7 @@ export const performanceCategoryService = {
       };
 
       await setDoc(categoryRef, category);
-      console.log('✅ Performance category created successfully:', category);
+      // console.log removed('✅ Performance category created successfully:', category);
       return category;
     } catch (error) {
       console.error('❌ Error creating performance category:', error);
@@ -52,7 +52,7 @@ export const performanceCategoryService = {
         throw new Error('Club ID is required');
       }
 
-      console.log('🔍 Fetching categories for club:', clubId);
+      // console.log removed('🔍 Fetching categories for club:', clubId);
       
       const categoriesQuery = query(
         collection(db, 'performanceCategories'),
@@ -61,14 +61,14 @@ export const performanceCategoryService = {
       );
 
       const categoriesSnap = await getDocs(categoriesQuery);
-      console.log('📊 Query result:', categoriesSnap.size, 'categories found');
+      // console.log removed('📊 Query result:', categoriesSnap.size, 'categories found');
       
       const categories = categoriesSnap.docs.map(doc => ({ 
         id: doc.id, 
         ...doc.data() 
       }));
       
-      console.log('📋 Categories loaded:', categories);
+      // console.log removed('📋 Categories loaded:', categories);
       
       // Sort client-side to avoid needing a Firestore index
       return categories.sort((a, b) => a.name.localeCompare(b.name));
@@ -105,7 +105,7 @@ export const performanceCategoryService = {
       };
 
       await updateDoc(categoryRef, updatedData);
-      console.log('✅ Performance category updated successfully:', categoryData.name);
+      // console.log removed('✅ Performance category updated successfully:', categoryData.name);
       return updatedData;
     } catch (error) {
       console.error('❌ Error updating performance category:', error);
@@ -154,7 +154,7 @@ export const performanceCategoryService = {
       });
 
       await batch.commit();
-      console.log('✅ Performance category and related data deleted successfully');
+      // console.log removed('✅ Performance category and related data deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting performance category:', error);
       throw error;

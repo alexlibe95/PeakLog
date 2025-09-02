@@ -32,7 +32,7 @@ export const athletePerformanceService = {
       };
 
       await setDoc(recordRef, record);
-      console.log('✅ Athlete record created successfully');
+      // console.log removed('✅ Athlete record created successfully');
       return record;
     } catch (error) {
       console.error('❌ Error creating athlete record:', error);
@@ -117,7 +117,7 @@ export const athletePerformanceService = {
       };
 
       await updateDoc(recordRef, updatedData);
-      console.log('✅ Athlete record updated successfully');
+      // console.log removed('✅ Athlete record updated successfully');
       return updatedData;
     } catch (error) {
       console.error('❌ Error updating athlete record:', error);
@@ -133,7 +133,7 @@ export const athletePerformanceService = {
         isActive: false,
         updatedAt: new Date().toISOString()
       });
-      console.log('✅ Athlete record deleted successfully');
+      // console.log removed('✅ Athlete record deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting athlete record:', error);
       throw error;
@@ -161,7 +161,7 @@ export const athletePerformanceService = {
       };
 
       await setDoc(goalRef, goal);
-      console.log('✅ Athlete goal created successfully');
+      // console.log removed('✅ Athlete goal created successfully');
       return goal;
     } catch (error) {
       console.error('❌ Error creating athlete goal:', error);
@@ -200,7 +200,7 @@ export const athletePerformanceService = {
       };
 
       await updateDoc(goalRef, updatedData);
-      console.log('✅ Athlete goal updated successfully');
+      // console.log removed('✅ Athlete goal updated successfully');
       return updatedData;
     } catch (error) {
       console.error('❌ Error updating athlete goal:', error);
@@ -223,7 +223,7 @@ export const athletePerformanceService = {
 
       const goalRef = doc(db, 'athleteGoals', goalId);
       await updateDoc(goalRef, updateData);
-      console.log('✅ Athlete goal marked as completed');
+      // console.log removed('✅ Athlete goal marked as completed');
       return updateData;
     } catch (error) {
       console.error('❌ Error completing athlete goal:', error);
@@ -239,7 +239,7 @@ export const athletePerformanceService = {
         isActive: false,
         updatedAt: new Date().toISOString()
       });
-      console.log('✅ Athlete goal deleted successfully');
+      // console.log removed('✅ Athlete goal deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting athlete goal:', error);
       throw error;
@@ -463,7 +463,7 @@ export const athletePerformanceService = {
       const results = await Promise.all(checkPromises);
       const achievedGoals = results.filter(result => result.achieved);
       
-      console.log(`✅ Auto-checked ${goalsSnap.size} goals, ${achievedGoals.length} achieved`);
+      // console.log removed(`✅ Auto-checked ${goalsSnap.size} goals, ${achievedGoals.length} achieved`);
       return achievedGoals;
     } catch (error) {
       console.error('❌ Error auto-checking goals:', error);
@@ -485,7 +485,7 @@ export const athletePerformanceService = {
 
       const recordsSnap = await getDocs(recordsQuery);
       if (recordsSnap.empty) {
-        console.log('ℹ️ No active records found for this category');
+        // console.log removed('ℹ️ No active records found for this category');
         return 0;
       }
 
@@ -498,7 +498,7 @@ export const athletePerformanceService = {
       });
 
       await batch.commit();
-      console.log(`✅ Deleted ${recordsSnap.size} athlete records for category ${categoryId}`);
+      // console.log removed(`✅ Deleted ${recordsSnap.size} athlete records for category ${categoryId}`);
       return recordsSnap.size;
     } catch (error) {
       console.error('❌ Error deleting records by category:', error);
@@ -518,7 +518,7 @@ export const athletePerformanceService = {
 
       const goalsSnap = await getDocs(goalsQuery);
       if (goalsSnap.empty) {
-        console.log('ℹ️ No active goals found for this category');
+        // console.log removed('ℹ️ No active goals found for this category');
         return 0;
       }
 
@@ -531,7 +531,7 @@ export const athletePerformanceService = {
       });
 
       await batch.commit();
-      console.log(`✅ Deleted ${goalsSnap.size} athlete goals for category ${categoryId}`);
+      // console.log removed(`✅ Deleted ${goalsSnap.size} athlete goals for category ${categoryId}`);
       return goalsSnap.size;
     } catch (error) {
       console.error('❌ Error deleting goals by category:', error);
@@ -542,14 +542,14 @@ export const athletePerformanceService = {
   // Delete all performance data related to a category (records and goals)
   async deleteCategoryPerformanceData(categoryId, clubId) {
     try {
-      console.log(`🗑️ Deleting all performance data for category ${categoryId} in club ${clubId}`);
+      // console.log removed(`🗑️ Deleting all performance data for category ${categoryId} in club ${clubId}`);
 
       const [deletedRecords, deletedGoals] = await Promise.all([
         this.deleteRecordsByCategory(categoryId, clubId),
         this.deleteGoalsByCategory(categoryId, clubId)
       ]);
 
-      console.log(`✅ Deleted ${deletedRecords} records and ${deletedGoals} goals for category ${categoryId}`);
+      // console.log removed(`✅ Deleted ${deletedRecords} records and ${deletedGoals} goals for category ${categoryId}`);
       return { deletedRecords, deletedGoals };
     } catch (error) {
       console.error('❌ Error deleting category performance data:', error);

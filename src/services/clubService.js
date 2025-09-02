@@ -92,7 +92,7 @@ export const clubService = {
       // Commit all deletions
       await batch.commit();
 
-      console.log(`Club ${clubId} and all related data deleted successfully`);
+      // console.log removed(`Club ${clubId} and all related data deleted successfully`);
     } catch (error) {
       console.error('Error deleting club:', error);
       throw new Error(`Failed to delete club: ${error.message}`);
@@ -399,7 +399,7 @@ export const clubService = {
       };
 
       await setDoc(programRef, program);
-      console.log('✅ Training program created successfully:', program.name);
+      // console.log removed('✅ Training program created successfully:', program.name);
       return program;
     } catch (error) {
       console.error('❌ Error creating training program:', error);
@@ -419,7 +419,7 @@ export const clubService = {
       };
 
       await setDoc(scheduleRef, schedule);
-      console.log('✅ Weekly schedule saved successfully');
+      // console.log removed('✅ Weekly schedule saved successfully');
       return schedule;
     } catch (error) {
       console.error('❌ Error saving weekly schedule:', error);
@@ -480,7 +480,7 @@ export const clubService = {
 
       // If no days are enabled, return empty array
       if (enabledDays.length === 0) {
-        console.log('⚠️ No enabled days in weekly schedule');
+        // console.log removed('⚠️ No enabled days in weekly schedule');
         return [];
       }
 
@@ -499,15 +499,15 @@ export const clubService = {
           let program = null;
           if (matchingDay.programId && matchingDay.programId !== 'none') {
             try {
-              console.log('🔍 Looking for program with ID:', matchingDay.programId);
+              // console.log removed('🔍 Looking for program with ID:', matchingDay.programId);
               const programs = await this.getTrainingPrograms(clubId);
-              console.log('📚 Available programs:', programs.length, 'found');
+              // console.log removed('📚 Available programs:', programs.length, 'found');
               program = programs.find(p => p.id === matchingDay.programId);
               if (program) {
-                console.log('✅ Program found:', program.name);
+                // console.log removed('✅ Program found:', program.name);
               } else {
-                console.log('❌ Program not found with ID:', matchingDay.programId);
-                console.log('Available program IDs:', programs.map(p => p.id));
+                // console.log removed('❌ Program not found with ID:', matchingDay.programId);
+                // console.log removed('Available program IDs:', programs.map(p => p.id));
               }
             } catch (error) {
               console.error('❌ Error fetching program for day:', error);
@@ -581,7 +581,7 @@ export const clubService = {
       };
 
       await updateDoc(programRef, updatedData);
-      console.log('✅ Training program updated successfully:', programData.name);
+      // console.log removed('✅ Training program updated successfully:', programData.name);
       return updatedData;
     } catch (error) {
       console.error('❌ Error updating training program:', error);
@@ -596,7 +596,7 @@ export const clubService = {
         isActive: false,
         updatedAt: new Date()
       });
-      console.log('✅ Training program deactivated successfully');
+      // console.log removed('✅ Training program deactivated successfully');
     } catch (error) {
       console.error('❌ Error deleting training program:', error);
       throw error;
@@ -713,7 +713,7 @@ export const clubService = {
       };
 
       await setDoc(sessionRef, session);
-      console.log('✅ Training session created from schedule:', session.title);
+      // console.log removed('✅ Training session created from schedule:', session.title);
       return session;
     } catch (error) {
       console.error('❌ Error creating training session from schedule:', error);
@@ -785,7 +785,7 @@ export const clubService = {
       });
 
       await batch.commit();
-      console.log('✅ Bulk attendance marked for', attendanceData.length, 'athletes');
+      // console.log removed('✅ Bulk attendance marked for', attendanceData.length, 'athletes');
       return true;
     } catch (error) {
       console.error('❌ Error bulk marking attendance:', error);
@@ -911,7 +911,7 @@ export const clubService = {
         updatedAt: new Date().toISOString()
       });
 
-      console.log(`✅ User ${userId} promoted to super admin`);
+      // console.log removed(`✅ User ${userId} promoted to super admin`);
       return { success: true, message: `User promoted to super admin successfully` };
     } catch (error) {
       console.error('Error promoting user to super admin:', error);
@@ -932,7 +932,7 @@ export const clubService = {
         updatedAt: new Date().toISOString()
       });
 
-      console.log(`✅ User ${userId} demoted from super admin`);
+      // console.log removed(`✅ User ${userId} demoted from super admin`);
       return { success: true, message: `User demoted from super admin successfully` };
     } catch (error) {
       console.error('Error demoting user from super admin:', error);
@@ -991,7 +991,7 @@ export const clubService = {
       };
 
       await setDoc(cancellationsRef, data);
-      console.log('✅ Training cancellations saved successfully');
+      // console.log removed('✅ Training cancellations saved successfully');
       return data;
     } catch (error) {
       console.error('❌ Error saving training cancellations:', error);
@@ -1102,7 +1102,7 @@ export const clubService = {
       });
 
       await batch.commit();
-      console.log('✅ Session attendance updated successfully');
+      // console.log removed('✅ Session attendance updated successfully');
       return true;
     } catch (error) {
       console.error('❌ Error updating session attendance:', error);
@@ -1232,7 +1232,7 @@ export const clubService = {
       const docId = email.replace(/\./g, '_');
       const pendingRef = doc(db, 'clubs', clubId, 'pendingAssignments', docId);
       await deleteDoc(pendingRef);
-      console.log('✅ Invitation cancelled for:', email);
+      // console.log removed('✅ Invitation cancelled for:', email);
       return true;
     } catch (error) {
       console.error('Error cancelling invitation:', error);
@@ -1245,7 +1245,7 @@ export const clubService = {
     try {
       const pendingRef = doc(db, 'clubs', clubId, 'pendingAssignments', invitationId);
       await deleteDoc(pendingRef);
-      console.log('✅ Invitation cancelled:', invitationId);
+      // console.log removed('✅ Invitation cancelled:', invitationId);
       return true;
     } catch (error) {
       console.error('Error cancelling invitation by ID:', error);
@@ -1265,7 +1265,7 @@ export const clubService = {
       };
       
       await setDoc(messageRef, messageToSave);
-      console.log('✅ Club message saved successfully');
+      // console.log removed('✅ Club message saved successfully');
       return messageToSave;
     } catch (error) {
       console.error('❌ Error saving club message:', error);
@@ -1298,7 +1298,7 @@ export const clubService = {
         active: false,
         deletedAt: new Date()
       });
-      console.log('✅ Club message deleted successfully');
+      // console.log removed('✅ Club message deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting club message:', error);
       throw error;

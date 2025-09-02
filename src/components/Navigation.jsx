@@ -71,7 +71,6 @@ const Navigation = () => {
     try {
       // Check if user is super admin (has super admin access)
       if (isSuper()) {
-        console.log('👑 Super admin detected, navigating to super admin page');
         // For super admins, navigate to superadmin page
         navigate('/superadmin');
         return;
@@ -89,7 +88,6 @@ const Navigation = () => {
         }, 100);
       } else {
         // If user is not admin in any club, navigate to dashboard
-        console.log('❌ No admin membership found, redirecting to dashboard');
         navigate('/dashboard');
       }
     } finally {
@@ -103,15 +101,6 @@ const Navigation = () => {
     setIsNavigating(true);
 
     try {
-      console.log('🏋️ Training Management click:', {
-        memberships,
-        currentClubId,
-        currentRole,
-        isAdmin: isAdmin(),
-        isSuper: isSuper(),
-        adminMemberships: memberships.filter(m => m.role === 'admin')
-      });
-
       // Find the first club where the user is an admin
       const adminMembership = memberships.find(m => m.role === 'admin');
 
@@ -194,7 +183,8 @@ const Navigation = () => {
     // Add athlete sections
     const athleteMemberships = memberships.filter(m => m.role === 'athlete');
     if (athleteMemberships.length > 0) {
-      items.push({ path: '/training', label: 'Training', icon: '🏃' });
+      items.push({ path: '/training', label: 'Training', icon: '🏋️' });
+      items.push({ path: '/my-progress', label: 'My Progress', icon: '📈' });
     }
 
     return items;

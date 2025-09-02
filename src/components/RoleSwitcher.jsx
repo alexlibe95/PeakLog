@@ -69,14 +69,14 @@ const RoleSwitcher = () => {
   const currentMembership = getCurrentMembership();
 
   const handleRoleSwitch = (clubId, role) => {
-    console.log('🔄 RoleSwitcher handleRoleSwitch called:', { clubId, role });
+    // console.log removed
     const success = switchRole(clubId, role);
-    console.log('🔄 RoleSwitcher switchRole result:', success);
+    // console.log removed
     if (success) {
-      console.log('✅ Role switch successful, closing dropdown');
+      // console.log removed
       setIsOpen(false);
     } else {
-      console.log('❌ Role switch failed, keeping dropdown open');
+      // console.log removed
     }
   };
 

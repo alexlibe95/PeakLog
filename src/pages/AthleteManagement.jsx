@@ -69,13 +69,7 @@ function AthleteManagement() {
 
   // Debug log the auth state
   useEffect(() => {
-    console.log('🔐 AthleteManagement Auth State:', {
-      user: user?.uid,
-      userProfile,
-      currentClubId,
-      memberships,
-      isAdmin: isAdmin?.()
-    });
+    // Auth state logging removed
   }, [user, userProfile, currentClubId, memberships, isAdmin]);
 
   // State management
@@ -137,11 +131,8 @@ function AthleteManagement() {
   // Load data when club changes
   useEffect(() => {
     if (effectiveClubId) {
-      console.log('🏠 AthleteManagement: effectiveClubId changed to:', effectiveClubId);
       loadAthletes();
       loadCategories();
-    } else {
-      console.log('⚠️ AthleteManagement: No effective club ID');
     }
   }, [effectiveClubId]);
 
@@ -198,7 +189,6 @@ function AthleteManagement() {
       }));
 
       setSelectedAthletePBs(pbs);
-      console.log('🏆 Loaded athlete PBs:', pbs);
     } catch (error) {
       console.error('Error loading athlete PBs:', error);
       setSelectedAthletePBs([]);

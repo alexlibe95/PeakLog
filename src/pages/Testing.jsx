@@ -688,13 +688,6 @@ const Testing = () => {
                                     test.results && test.results.length > 0 ? (
                                       <div className="space-y-1">
                                         {test.results.map((result, index) => {
-                                          console.log('🎯 Rendering athlete result:', {
-                                            index,
-                                            athleteId: result.athleteId,
-                                            athleteName: result.athleteName,
-                                            email: result.email
-                                          });
-
                                           return (
                                             <div key={index} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-muted/50 rounded-lg">
                                               <div className="flex flex-col flex-1 min-w-0">
