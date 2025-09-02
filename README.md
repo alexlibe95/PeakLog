@@ -20,7 +20,7 @@ A comprehensive training management and performance tracking platform designed f
 - **Form Handling**: React Hook Form
 - **Icons**: Lucide React
 - **Code Quality**: ESLint + Prettier
-- **Deployment**: Firebase Hosting + GitHub Actions CI/CD
+- **Deployment**: Netlify
 
 ## ✨ Features
 
@@ -70,10 +70,9 @@ A comprehensive training management and performance tracking platform designed f
 
 ### Prerequisites
 
-- Node.js 20+ (required for Firebase CLI v14+)
-- Firebase project with Authentication, Firestore, and Hosting enabled
+- Node.js 20+
+- Firebase project with Authentication and Firestore enabled
 - Git
-- Firebase CLI (`npm install -g firebase-tools`)
 
 ### 1. Clone and Install
 
@@ -89,14 +88,12 @@ npm install
 2. **Enable Authentication**:
    - Go to Authentication → Sign-in method
    - Enable "Email/Password" provider
-   - Enable "Email link (passwordless sign-in)" 
+   - Enable "Email link (passwordless sign-in)"
    - Add your domain to authorized domains (localhost, your-domain.com)
 3. **Create Firestore Database**:
    - Go to Firestore Database → Create database
    - Start in test mode (we'll add security rules later)
-4. **Enable Hosting**:
-   - Go to Hosting → Get started
-5. Copy your Firebase config from Project Settings → General → Your apps
+4. Copy your Firebase config from Project Settings → General → Your apps
 
 ### 3. Environment Configuration
 
@@ -201,11 +198,6 @@ npm run lint:fix     # Fix ESLint errors
 npm run format       # Format code with Prettier
 npm run format:check # Check code formatting
 npm run type-check   # TypeScript type checking
-
-# Firebase Deployment
-firebase deploy      # Deploy to Firebase Hosting
-firebase serve       # Test production build locally
-firebase login       # Authenticate with Firebase CLI
 ```
 
 ## 🎯 User Roles
@@ -243,41 +235,6 @@ firebase login       # Authenticate with Firebase CLI
 - Environment variable protection
 - Firebase Authentication
 
-## 🚀 Deployment
-
-This project is configured for **Firebase Hosting** with automatic CI/CD via GitHub Actions.
-
-### Automatic Deployment
-
-- **Production**: Push to `main` branch → Auto-deploy to [https://peaklog-a10b4.web.app](https://peaklog-a10b4.web.app)
-- **Preview**: Create pull request → Auto-deploy preview for testing
-- **Manual**: Run `firebase deploy` for immediate deployment
-
-### GitHub Actions Setup
-
-The project includes pre-configured workflows:
-- `.github/workflows/firebase-hosting-merge.yml` - Production deployments
-- `.github/workflows/firebase-hosting-pull-request.yml` - PR previews
-
-### Manual Deployment
-
-```bash
-# Build and deploy to Firebase Hosting
-npm run build
-firebase deploy
-
-# Or deploy with Firebase CLI
-firebase login
-firebase use peaklog-a10b4
-firebase deploy --only hosting
-```
-
-### Environment Variables
-
-Set these in your deployment environment:
-- All `VITE_FIREBASE_*` variables from your `.env` file
-- Firebase automatically handles hosting configuration
-
 ## 🎮 Authentication Demo
 
 ### Magic Link Login
@@ -308,7 +265,6 @@ npm run lint:fix && npm run format
 npm run build  # Test production build
 git commit -m "feat: your feature description"
 git push origin feature/your-feature
-# Automatic preview deployment via GitHub Actions
 ```
 
 ### Development Best Practices
@@ -373,13 +329,13 @@ git push origin feature/your-feature
 - **Vite Build Tool** - Lightning-fast development and optimized production builds
 - **Code Splitting** - Automatic chunking for faster loading times
 - **Tree Shaking** - Minimal bundle size with unused code elimination
-- **CDN Deployment** - Firebase global CDN hosting for worldwide performance
+- **Optimized Builds** - Fast loading with Vite build optimization
 - **Image Optimization** - Efficient image handling and lazy loading
 
 ### Developer Experience
 - **Hot Module Replacement** - Instant development feedback
 - **ESLint + Prettier** - Automated code quality and formatting
-- **GitHub Actions** - Automated testing and deployment pipeline
+- **Version Control** - Git-based development workflow
 - **Environment Management** - Secure credential handling with Vite
 - **Comprehensive Error Handling** - Robust error boundaries and user feedback
 
