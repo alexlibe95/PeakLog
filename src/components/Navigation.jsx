@@ -177,17 +177,17 @@ const Navigation = () => {
     if (adminMemberships.length > 0) {
       // If super admin (actual or currently switched), add training management as additional option
       if (isActualSuperAdmin || isCurrentlySuper) {
-        items.push({ path: '/training-management', label: 'Training Mgmt', icon: '🏋️' });
-        items.push({ path: '/athlete-management', label: 'Athlete Mgmt', icon: '🏆' });
+        items.push({ path: '/training-management', label: 'Trainings', icon: '🏋️' });
+        items.push({ path: '/athlete-management', label: 'Athletes', icon: '🏆' });
         items.push({ path: '/category-management', label: 'Categories', icon: '📊' });
-        items.push({ path: '/testing', label: 'Testing', icon: '📏' });
+        items.push({ path: '/testing', label: 'Test Limits', icon: '⚡' });
       } else {
         // Regular admin users get both club admin and training management
         items.push({ path: '/admin', label: 'Club Admin', icon: '🛠️' });
-        items.push({ path: '/training-management', label: 'Training Mgmt', icon: '🏋️' });
-        items.push({ path: '/athlete-management', label: 'Athlete Mgmt', icon: '🏆' });
+        items.push({ path: '/training-management', label: 'Trainings', icon: '🏋️' });
+        items.push({ path: '/athlete-management', label: 'Athletes', icon: '🏆' });
         items.push({ path: '/category-management', label: 'Categories', icon: '📊' });
-        items.push({ path: '/testing', label: 'Testing', icon: '📏' });
+        items.push({ path: '/testing', label: 'Test Limits', icon: '⚡' });
       }
     }
 

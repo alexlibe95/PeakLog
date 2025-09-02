@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
 import { useToast } from '@/components/ui/toast-context';
 import Navigation from '@/components/Navigation';
-import { Plus, Edit, Trash2, Target, BarChart3, Activity } from 'lucide-react';
+import { Plus, Edit, Trash2, Target } from 'lucide-react';
 
 const CategoryManagement = () => {
   const { user, currentClubId, memberships } = useAuth();
@@ -142,15 +142,7 @@ const CategoryManagement = () => {
     setFormData({ name: '', description: '', unit: '' });
   };
 
-  // Get category usage stats (placeholder - would need to implement)
-  const getCategoryStats = (categoryId) => {
-    // This would normally check how many athletes have records/goals in this category
-    return {
-      athletes: Math.floor(Math.random() * 10), // Placeholder
-      records: Math.floor(Math.random() * 20),  // Placeholder
-      goals: Math.floor(Math.random() * 5)      // Placeholder
-    };
-  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -200,7 +192,6 @@ const CategoryManagement = () => {
             </div>
           ) : (
             categories.map((category) => {
-              const stats = getCategoryStats(category.id);
               return (
                 <Card key={category.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
@@ -256,26 +247,10 @@ const CategoryManagement = () => {
                   </CardHeader>
                   <CardContent>
                     {category.description && (
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      <p className="text-sm text-muted-foreground">
                         {category.description}
                       </p>
                     )}
-
-                    {/* Category Stats */}
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-primary/5 rounded p-2">
-                        <div className="text-lg font-bold text-primary">{stats.athletes}</div>
-                        <div className="text-xs text-muted-foreground">Athletes</div>
-                      </div>
-                      <div className="bg-green-50 rounded p-2">
-                        <div className="text-lg font-bold text-green-600">{stats.records}</div>
-                        <div className="text-xs text-muted-foreground">Records</div>
-                      </div>
-                      <div className="bg-blue-50 rounded p-2">
-                        <div className="text-lg font-bold text-blue-600">{stats.goals}</div>
-                        <div className="text-xs text-muted-foreground">Goals</div>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               );
