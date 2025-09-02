@@ -39,7 +39,6 @@ const Navigation = () => {
     currentClubId,
     currentRole,
     memberships,
-    hasMultipleRoles,
     switchRole,
     claims
   } = useAuth();
@@ -106,7 +105,7 @@ const Navigation = () => {
     }
   };
 
-  const isPending = userProfile?.role === 'pending' && memberships.length === 0;
+
 
   // Get the highest priority role for display
   const getHighestRole = () => {

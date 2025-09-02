@@ -55,13 +55,6 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   const [sessionAttendance, setSessionAttendance] = useState([]);
 
   useEffect(() => {
-    console.log('TrainingCalendar useEffect triggered:', {
-      clubId,
-      currentDate: currentDate.toString(),
-      month: currentDate.getMonth(),
-      year: currentDate.getFullYear()
-    });
-    
     if (clubId) {
       loadCalendarData();
       loadClubMembers();
@@ -232,12 +225,9 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   };
 
   const navigateMonth = (direction) => {
-    console.log('navigateMonth called with direction:', direction);
     setCurrentDate(prev => {
-      console.log('Previous date:', prev);
       // Create a completely new date object to avoid any mutation issues
       const newDate = new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
-      console.log('New date:', newDate, 'Month:', newDate.getMonth(), 'Year:', newDate.getFullYear());
       return newDate;
     });
   };

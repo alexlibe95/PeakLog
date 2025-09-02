@@ -10,10 +10,8 @@ import {
   updateDoc,
   where,
   arrayUnion,
-  arrayRemove,
-  writeBatch,
   orderBy,
-  limit,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -473,7 +471,7 @@ export const clubService = {
 
       // Get enabled days from weekly schedule
       const enabledDays = Object.entries(weeklySchedule.schedule)
-        .filter(([_, dayData]) => dayData.enabled)
+        .filter(([, dayData]) => dayData.enabled)
         .map(([dayKey, dayData]) => ({
           dayKey,
           ...dayData,

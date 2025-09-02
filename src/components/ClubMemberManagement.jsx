@@ -34,7 +34,7 @@ import {
 import { Users, Trash2, Shield } from 'lucide-react';
 
 const ClubMemberManagement = ({ clubId }) => {
-  const { user, isSuper, currentClubId } = useAuth();
+  const { user, currentClubId } = useAuth();
   const { toast } = useToast();
 
   const [members, setMembers] = useState([]);
@@ -82,7 +82,7 @@ const ClubMemberManagement = ({ clubId }) => {
     setSaving(true);
     try {
       await clubService.changeUserRole(effectiveClubId, userId, newRole);
-      await loadMembersAndInvites();
+      await loadMembers();
 
       toast({
         title: 'Role updated successfully'
@@ -98,7 +98,7 @@ const ClubMemberManagement = ({ clubId }) => {
     }
   };
 
-  const handleRemoveMember = async (userId, memberEmail) => {
+  const handleRemoveMember = async (userId) => {
     if (!effectiveClubId) return;
 
     setSaving(true);
@@ -111,7 +111,7 @@ const ClubMemberManagement = ({ clubId }) => {
         await clubService.removeAthlete(effectiveClubId, userId);
       }
 
-      await loadMembersAndInvites();
+      await loadMembers();
 
       toast({
         title: 'Member removed successfully'
@@ -241,7 +241,7 @@ const ClubMemberManagement = ({ clubId }) => {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleRemoveMember(member.id, member.email)}
+                                  onClick={() => handleRemoveMember(member.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Remove

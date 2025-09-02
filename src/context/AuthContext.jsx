@@ -11,7 +11,7 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, collectionGroup, getDocs, query, where, updateDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, updateDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { clubService } from '../services/clubService';
 

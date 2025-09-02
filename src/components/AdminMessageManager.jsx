@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,13 +41,7 @@ const AdminMessageManager = ({ clubId }) => {
     { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-800' }
   ];
 
-  useEffect(() => {
-    if (clubId) {
-      loadCurrentMessage();
-    }
-  }, [clubId]);
-
-  const loadCurrentMessage = async () => {
+  const loadCurrentMessage = useCallback(async () => {
     setLoadingMessage(true);
     try {
       const message = await clubService.getClubMessage(clubId);
@@ -62,7 +56,13 @@ const AdminMessageManager = ({ clubId }) => {
     } finally {
       setLoadingMessage(false);
     }
-  };
+  }, [clubId, toast]);
+
+  useEffect(() => {
+    if (clubId) {
+      loadCurrentMessage();
+    }
+  }, [clubId, loadCurrentMessage]);
 
   const handleSaveMessage = async () => {
     if (!messageForm.title.trim() || !messageForm.content.trim()) {

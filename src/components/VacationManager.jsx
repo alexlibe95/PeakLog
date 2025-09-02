@@ -60,19 +60,6 @@ const VacationManager = ({ clubId, clubName }) => {
       const data = await clubService.getTrainingCancellations(clubId);
       const cancellationsList = data.cancellations || [];
       
-      // Debug: Log the cancellations to see their structure
-      console.log('Loaded cancellations:', cancellationsList);
-      cancellationsList.forEach((c, index) => {
-        console.log(`Cancellation ${index}:`, {
-          id: c.id,
-          date: c.date,
-          dateType: typeof c.date,
-          hasToDate: c.date && typeof c.date.toDate === 'function',
-          reason: c.reason,
-          type: c.type
-        });
-      });
-      
       setCancellations(cancellationsList);
     } catch (error) {
       console.error('Error loading cancellations:', error);
@@ -112,8 +99,8 @@ const VacationManager = ({ clubId, clubName }) => {
       // Get weekly schedule to know which days are normally scheduled
       const weeklySchedule = await clubService.getWeeklySchedule(clubId);
       const enabledDays = Object.entries(weeklySchedule.schedule)
-        .filter(([_, dayData]) => dayData.enabled)
-        .map(([dayKey, _]) => {
+        .filter(([, dayData]) => dayData.enabled)
+        .map(([dayKey]) => {
           const dayMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
           return dayMap[dayKey];
         });

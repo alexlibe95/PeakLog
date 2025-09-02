@@ -29,7 +29,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/toast-context.jsx';
 import { useState, useEffect } from 'react';
 import { clubService } from '@/services/clubService';
@@ -41,7 +40,7 @@ function MemberManagement({
   isSuper = false,
   onMemberChange = () => {}
 }) {
-  const { user } = useAuth();
+
   const { toast } = useToast();
 
   const [email, setEmail] = useState('');
