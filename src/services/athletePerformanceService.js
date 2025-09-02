@@ -7,6 +7,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -466,6 +467,92 @@ export const athletePerformanceService = {
       return achievedGoals;
     } catch (error) {
       console.error('❌ Error auto-checking goals:', error);
+      throw error;
+    }
+  },
+
+  // ===== CATEGORY DELETION HELPERS =====
+
+  // Delete all records related to a category (soft delete)
+  async deleteRecordsByCategory(categoryId, clubId) {
+    try {
+      const recordsQuery = query(
+        collection(db, 'athleteRecords'),
+        where('categoryId', '==', categoryId),
+        where('clubId', '==', clubId),
+        where('isActive', '==', true)
+      );
+
+      const recordsSnap = await getDocs(recordsQuery);
+      if (recordsSnap.empty) {
+        console.log('ℹ️ No active records found for this category');
+        return 0;
+      }
+
+      const batch = writeBatch(db);
+      recordsSnap.docs.forEach(doc => {
+        batch.update(doc.ref, {
+          isActive: false,
+          updatedAt: new Date().toISOString()
+        });
+      });
+
+      await batch.commit();
+      console.log(`✅ Deleted ${recordsSnap.size} athlete records for category ${categoryId}`);
+      return recordsSnap.size;
+    } catch (error) {
+      console.error('❌ Error deleting records by category:', error);
+      throw error;
+    }
+  },
+
+  // Delete all goals related to a category (soft delete)
+  async deleteGoalsByCategory(categoryId, clubId) {
+    try {
+      const goalsQuery = query(
+        collection(db, 'athleteGoals'),
+        where('categoryId', '==', categoryId),
+        where('clubId', '==', clubId),
+        where('isActive', '==', true)
+      );
+
+      const goalsSnap = await getDocs(goalsQuery);
+      if (goalsSnap.empty) {
+        console.log('ℹ️ No active goals found for this category');
+        return 0;
+      }
+
+      const batch = writeBatch(db);
+      goalsSnap.docs.forEach(doc => {
+        batch.update(doc.ref, {
+          isActive: false,
+          updatedAt: new Date().toISOString()
+        });
+      });
+
+      await batch.commit();
+      console.log(`✅ Deleted ${goalsSnap.size} athlete goals for category ${categoryId}`);
+      return goalsSnap.size;
+    } catch (error) {
+      console.error('❌ Error deleting goals by category:', error);
+      throw error;
+    }
+  },
+
+  // Delete all performance data related to a category (records and goals)
+  async deleteCategoryPerformanceData(categoryId, clubId) {
+    try {
+      console.log(`🗑️ Deleting all performance data for category ${categoryId} in club ${clubId}`);
+
+      const [deletedRecords, deletedGoals] = await Promise.all([
+        this.deleteRecordsByCategory(categoryId, clubId),
+        this.deleteGoalsByCategory(categoryId, clubId)
+      ]);
+
+      console.log(`✅ Deleted ${deletedRecords} records and ${deletedGoals} goals for category ${categoryId}`);
+      return { deletedRecords, deletedGoals };
+    } catch (error) {
+      console.error('❌ Error deleting category performance data:', error);
       throw error;
     }
   }

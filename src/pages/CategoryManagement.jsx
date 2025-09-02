@@ -4,14 +4,49 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
+import { athletePerformanceService } from '@/services/athletePerformanceService';
 import { useToast } from '@/components/ui/toast-context';
 import Navigation from '@/components/Navigation';
 import { Plus, Edit, Trash2, Target } from 'lucide-react';
+
+// Static unit options for performance categories
+const UNIT_OPTIONS = [
+  // Time units (lower is better)
+  { value: 'seconds', label: 'Seconds', type: 'time' },
+  { value: 'minutes', label: 'Minutes', type: 'time' },
+  { value: 'hours', label: 'Hours', type: 'time' },
+  { value: 'milliseconds', label: 'Milliseconds', type: 'time' },
+
+  // Weight units (higher is better)
+  { value: 'kg', label: 'Kilograms (kg)', type: 'weight' },
+  { value: 'lbs', label: 'Pounds (lbs)', type: 'weight' },
+  { value: 'g', label: 'Grams (g)', type: 'weight' },
+  { value: 'tonnes', label: 'Tonnes', type: 'weight' },
+
+  // Distance units (higher is better)
+  { value: 'm', label: 'Meters (m)', type: 'distance' },
+  { value: 'km', label: 'Kilometers (km)', type: 'distance' },
+  { value: 'miles', label: 'Miles', type: 'distance' },
+  { value: 'feet', label: 'Feet', type: 'distance' },
+  { value: 'yards', label: 'Yards', type: 'distance' },
+
+  // Count units (higher is better)
+  { value: 'reps', label: 'Repetitions', type: 'count' },
+  { value: 'sets', label: 'Sets', type: 'count' },
+  { value: 'times', label: 'Times', type: 'count' },
+
+  // Points/score units (higher is better)
+  { value: 'points', label: 'Points', type: 'points' },
+  { value: 'pts', label: 'Points (pts)', type: 'points' },
+  { value: 'score', label: 'Score', type: 'points' },
+  { value: 'marks', label: 'Marks', type: 'points' }
+];
 
 const CategoryManagement = () => {
   const { user, currentClubId, memberships } = useAuth();
@@ -101,11 +136,16 @@ const CategoryManagement = () => {
   const handleDelete = async (categoryId) => {
     setSaving(true);
     try {
+      // Delete performance data first (records and goals)
+      await athletePerformanceService.deleteCategoryPerformanceData(categoryId, effectiveClubId);
+
+      // Delete the category itself
       await performanceCategoryService.deleteCategory(categoryId);
+
       await loadCategories();
       toast({
         title: 'Category deleted successfully',
-        description: 'The category and all related data have been removed'
+        description: 'The category and all related personal records and goals have been removed'
       });
     } catch (error) {
       console.error('Error deleting category:', error);
@@ -224,11 +264,12 @@ const CategoryManagement = () => {
                               <AlertDialogDescription>
                                 Are you sure you want to delete "{category.name}"? This will permanently remove:
                                 <ul className="list-disc list-inside mt-2 space-y-1">
-                                  <li>All athlete records in this category</li>
+                                  <li>The category itself</li>
+                                  <li>All athlete personal records in this category</li>
                                   <li>All goals related to this category</li>
                                   <li>All test results for this category</li>
                                 </ul>
-                                This action cannot be undone.
+                                <strong>Note:</strong> Personal records and goals will be soft-deleted (marked as inactive) but can be restored if needed. This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -288,12 +329,24 @@ const CategoryManagement = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="unit">Unit (optional)</Label>
-                  <Input
-                    id="unit"
+                  <Select
                     value={formData.unit}
-                    onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                    placeholder="e.g., seconds, kg, reps, points"
-                  />
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIT_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose the appropriate unit for measuring performance in this category.
+                  </p>
                 </div>
 
                 <div className="space-y-2">

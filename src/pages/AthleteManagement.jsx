@@ -47,7 +47,21 @@ import { useToast } from '@/components/ui/toast-context.jsx';
 import { clubService } from '@/services/clubService';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
 import { athletePerformanceService } from '@/services/athletePerformanceService';
+import { testService } from '@/services/testService';
 import { Shield, Users, Plus, Edit, Trash2, Target, Trophy, Calendar } from 'lucide-react';
+
+// Static mapping of category types to value comparison logic
+const CATEGORY_TYPE_RULES = {
+  // Time-based: lower is better (faster)
+  time: ['seconds', 'minutes', 'hours', 'sec', 'min', 'hr', 'ms', 'milliseconds'],
+  // Weight/distance: higher is better (stronger/farther)
+  weight: ['kg', 'lbs', 'pounds', 'kilograms', 'tonnes', 'tons', 'g', 'grams'],
+  distance: ['meters', 'm', 'km', 'kilometers', 'miles', 'mi', 'feet', 'ft', 'yards', 'yd'],
+  // Count-based: higher is better
+  count: ['reps', 'repetitions', 'count', 'times', 'sets'],
+  // Points/score: higher is better
+  points: ['points', 'pts', 'score', 'marks']
+};
 
 function AthleteManagement() {
   const { userProfile, currentClubId, memberships, user, isAdmin } = useAuth();
@@ -71,6 +85,7 @@ function AthleteManagement() {
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [selectedAthleteRecords, setSelectedAthleteRecords] = useState([]);
   const [selectedAthleteGoals, setSelectedAthleteGoals] = useState([]);
+  const [selectedAthletePBs, setSelectedAthletePBs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -158,9 +173,41 @@ function AthleteManagement() {
 
 
 
+
+  // Load athlete personal bests from personalRecords collection
+  const loadAthletePBs = async () => {
+    if (!selectedAthlete || !effectiveClubId) return;
+
+    try {
+      // Query personalRecords collection for this athlete
+      const { collection, query, where, orderBy, getDocs } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+
+      const pbQuery = query(
+        collection(db, 'personalRecords'),
+        where('athleteId', '==', selectedAthlete.id),
+        orderBy('updatedAt', 'desc')
+      );
+
+      const pbSnapshot = await getDocs(pbQuery);
+      const pbs = pbSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate?.() || doc.data().date,
+        updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
+      }));
+
+      setSelectedAthletePBs(pbs);
+      console.log('🏆 Loaded athlete PBs:', pbs);
+    } catch (error) {
+      console.error('Error loading athlete PBs:', error);
+      setSelectedAthletePBs([]);
+    }
+  };
+
   const loadAthleteData = async () => {
     if (!selectedAthlete || !effectiveClubId) return;
-    
+
     try {
       const [records, goals] = await Promise.all([
         athletePerformanceService.getAthleteRecords(selectedAthlete.id, effectiveClubId),
@@ -168,6 +215,9 @@ function AthleteManagement() {
       ]);
       setSelectedAthleteRecords(records);
       setSelectedAthleteGoals(goals);
+
+      // Also load personal bests
+      await loadAthletePBs();
     } catch (error) {
       console.error('Error loading athlete data:', error);
       toast({
@@ -375,6 +425,22 @@ function AthleteManagement() {
     return category ? category.unit : '';
   };
 
+  // Determine if higher values are better for a category
+  const isHigherBetter = (categoryId) => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category || !category.unit) return true; // Default to higher is better
+
+    const unit = category.unit.toLowerCase().trim();
+
+    // Check if unit indicates time (lower is better)
+    if (CATEGORY_TYPE_RULES.time.some(timeUnit => unit.includes(timeUnit))) {
+      return false;
+    }
+
+    // For weight, distance, count, points: higher is better
+    return true;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -485,11 +551,11 @@ function AthleteManagement() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {selectedAthleteRecords.length === 0 ? (
+                    {selectedAthleteRecords.length === 0 && selectedAthletePBs.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No personal records yet</p>
-                        <p className="text-sm mt-1">Add the athlete's first personal record</p>
+                        <p className="text-sm mt-1">Add the athlete's first personal record or wait for test results</p>
                       </div>
                     ) : (
                       <>
@@ -499,101 +565,232 @@ function AthleteManagement() {
                             <TableHeader>
                               <TableRow>
                                 <TableHead>Category</TableHead>
-                                <TableHead>Value</TableHead>
+                                <TableHead>Best Performance</TableHead>
                                 <TableHead>Date</TableHead>
-                                <TableHead>Notes</TableHead>
+                                <TableHead>Source</TableHead>
                                 <TableHead>Actions</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {selectedAthleteRecords.map((record) => (
-                                <TableRow key={record.id}>
-                                  <TableCell className="truncate max-w-xs">{getCategoryName(record.categoryId)}</TableCell>
-                                  <TableCell>
-                                    {record.value} {getCategoryUnit(record.categoryId)}
-                                  </TableCell>
-                                  <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                                  <TableCell className="truncate max-w-xs">{record.notes || '-'}</TableCell>
-                                  <TableCell>
-                                    <div className="flex gap-1">
-                                      <Button size="sm" variant="ghost" onClick={() => openRecordDialog(record)}>
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button size="sm" variant="ghost">
-                                            <Trash2 className="h-4 w-4" />
+                              {(() => {
+                                // Combine all records and PBs, then get the highest value per category
+                                const allRawRecords = [
+                                  // Manual records
+                                  ...selectedAthleteRecords.map(record => ({
+                                    ...record,
+                                    type: 'manual',
+                                    source: 'Manual Entry',
+                                    canEdit: true,
+                                    canDelete: true
+                                  })),
+                                  // Personal bests from tests
+                                  ...selectedAthletePBs.map(pb => ({
+                                    id: pb.id,
+                                    categoryId: pb.categoryId,
+                                    value: pb.value,
+                                    date: pb.date,
+                                    notes: pb.testId ? `Test ${pb.testId.slice(-8)}` : 'Test Result',
+                                    type: 'pb',
+                                    source: 'Test Result',
+                                    testId: pb.testId,
+                                    canEdit: false,
+                                    canDelete: false
+                                  }))
+                                ];
+
+                                // Group by category and get the highest value for each category
+                                const categoryMap = new Map();
+
+                                                            allRawRecords.forEach(record => {
+                              const categoryId = record.categoryId;
+                              if (!categoryMap.has(categoryId)) {
+                                categoryMap.set(categoryId, record);
+                              } else {
+                                const existing = categoryMap.get(categoryId);
+                                const higherIsBetter = isHigherBetter(categoryId);
+
+                                // Compare values based on whether higher or lower is better
+                                if (higherIsBetter) {
+                                  if (record.value > existing.value) {
+                                    categoryMap.set(categoryId, record);
+                                  }
+                                } else {
+                                  // Lower is better (e.g., time)
+                                  if (record.value < existing.value) {
+                                    categoryMap.set(categoryId, record);
+                                  }
+                                }
+                              }
+                            });
+
+                                // Convert back to array and sort by category name
+                                const consolidatedRecords = Array.from(categoryMap.values()).sort((a, b) => {
+                                  const categoryA = getCategoryName(a.categoryId);
+                                  const categoryB = getCategoryName(b.categoryId);
+                                  return categoryA.localeCompare(categoryB);
+                                });
+
+                                return consolidatedRecords.map((record) => (
+                                  <TableRow key={`${record.type}-${record.id}`}>
+                                    <TableCell className="truncate max-w-xs">{getCategoryName(record.categoryId)}</TableCell>
+                                    <TableCell className="font-mono">
+                                      {record.value} {getCategoryUnit(record.categoryId)}
+                                    </TableCell>
+                                    <TableCell>{record.date ? new Date(record.date).toLocaleDateString() : 'N/A'}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{record.source}</TableCell>
+                                    <TableCell>
+                                      {record.canEdit ? (
+                                        <div className="flex gap-1">
+                                          <Button size="sm" variant="ghost" onClick={() => openRecordDialog(record)}>
+                                            <Edit className="h-4 w-4" />
                                           </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent className="w-[95vw] max-w-md">
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Delete Record</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Are you sure you want to delete this personal record?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                                            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-                                            <AlertDialogAction
-                                              onClick={() => handleDeleteRecord(record.id)}
-                                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
-                                            >
-                                              Delete
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button size="sm" variant="ghost">
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent className="w-[95vw] max-w-md">
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete Record</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  Are you sure you want to delete this personal record?
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                                <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                  onClick={() => handleDeleteRecord(record.id)}
+                                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+                                                >
+                                                  Delete
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground">Auto-updated</span>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ));
+                              })()}
                             </TableBody>
                           </Table>
                         </div>
 
                         {/* Mobile Card View */}
                         <div className="sm:hidden space-y-3">
-                          {selectedAthleteRecords.map((record) => (
-                            <div key={record.id} className="border rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="font-medium truncate">{getCategoryName(record.categoryId)}</div>
-                                <div className="flex gap-1 flex-shrink-0">
-                                  <Button size="sm" variant="ghost" onClick={() => openRecordDialog(record)}>
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button size="sm" variant="ghost">
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent className="w-[95vw] max-w-md">
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Record</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Are you sure you want to delete this personal record?
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter className="flex-col gap-2">
-                                        <AlertDialogCancel className="w-full">Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => handleDeleteRecord(record.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full"
-                                        >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                          {(() => {
+                            // Combine all records and PBs, then get the highest value per category
+                            const allRawRecords = [
+                              // Manual records
+                              ...selectedAthleteRecords.map(record => ({
+                                ...record,
+                                type: 'manual',
+                                source: 'Manual Entry',
+                                canEdit: true,
+                                canDelete: true
+                              })),
+                              // Personal bests from tests
+                              ...selectedAthletePBs.map(pb => ({
+                                id: pb.id,
+                                categoryId: pb.categoryId,
+                                value: pb.value,
+                                date: pb.date,
+                                notes: pb.testId ? `Test ${pb.testId.slice(-8)}` : 'Test Result',
+                                type: 'pb',
+                                source: 'Test Result',
+                                testId: pb.testId,
+                                canEdit: false,
+                                canDelete: false
+                              }))
+                            ];
+
+                            // Group by category and get the highest value for each category
+                            const categoryMap = new Map();
+
+                            allRawRecords.forEach(record => {
+                              const categoryId = record.categoryId;
+                              if (!categoryMap.has(categoryId)) {
+                                categoryMap.set(categoryId, record);
+                              } else {
+                                const existing = categoryMap.get(categoryId);
+                                const higherIsBetter = isHigherBetter(categoryId);
+
+                                // Compare values based on whether higher or lower is better
+                                if (higherIsBetter) {
+                                  if (record.value > existing.value) {
+                                    categoryMap.set(categoryId, record);
+                                  }
+                                } else {
+                                  // Lower is better (e.g., time)
+                                  if (record.value < existing.value) {
+                                    categoryMap.set(categoryId, record);
+                                  }
+                                }
+                              }
+                            });
+
+                            // Convert back to array and sort by category name
+                            const consolidatedRecords = Array.from(categoryMap.values()).sort((a, b) => {
+                              const categoryA = getCategoryName(a.categoryId);
+                              const categoryB = getCategoryName(b.categoryId);
+                              return categoryA.localeCompare(categoryB);
+                            });
+
+                            return consolidatedRecords.map((record) => (
+                              <div key={`${record.type}-${record.id}`} className="border rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="font-medium truncate">{getCategoryName(record.categoryId)}</div>
+                                  <div className="flex gap-1 flex-shrink-0">
+                                    {record.canEdit ? (
+                                      <>
+                                        <Button size="sm" variant="ghost" onClick={() => openRecordDialog(record)}>
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button size="sm" variant="ghost">
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent className="w-[95vw] max-w-md">
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Delete Record</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Are you sure you want to delete this personal record?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="flex-col gap-2">
+                                              <AlertDialogCancel className="w-full">Cancel</AlertDialogCancel>
+                                              <AlertDialogAction
+                                                onClick={() => handleDeleteRecord(record.id)}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full"
+                                              >
+                                                Delete
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">Auto</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="space-y-1 text-sm text-muted-foreground">
+                                  <div className="font-mono">
+                                    <strong>Value:</strong> {record.value} {getCategoryUnit(record.categoryId)}
+                                  </div>
+                                  <div><strong>Date:</strong> {record.date ? new Date(record.date).toLocaleDateString() : 'N/A'}</div>
+                                  <div><strong>Source:</strong> {record.source}</div>
+                                  {record.notes && record.notes !== record.source && <div><strong>Notes:</strong> {record.notes}</div>}
                                 </div>
                               </div>
-                              <div className="space-y-1 text-sm text-muted-foreground">
-                                <div><strong>Value:</strong> {record.value} {getCategoryUnit(record.categoryId)}</div>
-                                <div><strong>Date:</strong> {new Date(record.date).toLocaleDateString()}</div>
-                                {record.notes && <div><strong>Notes:</strong> {record.notes}</div>}
-                              </div>
-                            </div>
-                          ))}
+                            ));
+                          })()}
                         </div>
                       </>
                     )}

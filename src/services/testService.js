@@ -40,6 +40,26 @@ export const testService = {
   },
 
   /**
+   * Update a test session
+   */
+  async updateTestSession(testSessionId, testData) {
+    try {
+      const docData = {
+        categoryId: testData.categoryId,
+        date: Timestamp.fromDate(new Date(testData.date)),
+        notes: testData.notes || '',
+        updatedAt: Timestamp.now(),
+      };
+
+      await updateDoc(doc(db, 'testSessions', testSessionId), docData);
+      return { id: testSessionId, ...docData };
+    } catch (error) {
+      console.error('Error updating test session:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Get test sessions for a club
    */
   async getClubTestSessions(clubId, limitCount = 50) {
@@ -52,13 +72,16 @@ export const testService = {
       );
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        date: doc.data().date?.toDate?.() || doc.data().date,
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-        updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
-      }));
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: data.date?.toDate?.() || data.date,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
+        };
+      });
     } catch (error) {
       console.error('Error getting test sessions:', error);
       throw error;
@@ -147,6 +170,56 @@ export const testService = {
       return { success: true, count: results.length };
     } catch (error) {
       console.error('Error adding test results:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update test results for a session (replace existing results)
+   */
+  async updateTestResults(testId, results) {
+    try {
+      // First, delete all existing results for this test
+      const existingResultsQuery = query(
+        collection(db, 'testResults'),
+        where('testId', '==', testId)
+      );
+      const existingResultsSnap = await getDocs(existingResultsQuery);
+
+      // Delete existing results in batch
+      if (!existingResultsSnap.empty) {
+        const deleteBatch = [];
+        existingResultsSnap.docs.forEach(doc => {
+          deleteBatch.push(deleteDoc(doc.ref));
+        });
+        await Promise.all(deleteBatch);
+      }
+
+      // Add new results if provided
+      if (results && results.length > 0) {
+        const addBatch = [];
+        for (const result of results) {
+          const docData = {
+            testId,
+            athleteId: result.athleteId,
+            value: parseFloat(result.value),
+            categoryId: result.categoryId,
+            notes: result.notes || '',
+            createdAt: Timestamp.now(),
+          };
+
+          addBatch.push(addDoc(collection(db, 'testResults'), docData));
+        }
+        await Promise.all(addBatch);
+      }
+
+      return {
+        success: true,
+        deleted: existingResultsSnap.size,
+        added: results ? results.length : 0
+      };
+    } catch (error) {
+      console.error('Error updating test results:', error);
       throw error;
     }
   },
@@ -304,12 +377,15 @@ export const testService = {
    */
   async getTestSessionsWithResults(clubId, limitCount = 20) {
     try {
+      console.log('🏟️ Getting test sessions for club:', clubId);
       const testSessions = await this.getClubTestSessions(clubId, limitCount);
+      console.log('📊 Found test sessions:', testSessions.length);
       const enrichedTests = [];
 
       for (const testSession of testSessions) {
         // Get results for this test
         const results = await this.getTestResults(testSession.id);
+        console.log('📈 Test results for session', testSession.id + ':', results.length, 'results');
 
         // Get category info
         const categoryDoc = await getDoc(doc(db, 'clubs', clubId, 'categories', testSession.categoryId));
@@ -319,21 +395,72 @@ export const testService = {
         const enrichedResults = [];
         for (const result of results) {
           try {
-            const athleteDoc = await getDoc(doc(db, 'clubs', clubId, 'members', result.athleteId));
-            const athleteData = athleteDoc.exists() ? athleteDoc.data() : { email: 'Unknown' };
+            console.log('🔍 Looking for athlete:', result.athleteId, 'in club:', clubId);
+            // First get the membership data from the club
+            const membershipDoc = await getDoc(doc(db, 'clubs', clubId, 'members', result.athleteId));
+            console.log('📄 Membership doc exists:', membershipDoc.exists());
+
+            let athleteData = { email: null };
+
+            if (membershipDoc.exists()) {
+              const membershipData = membershipDoc.data();
+              console.log('👥 Membership data:', JSON.stringify(membershipData, null, 2));
+
+              // Now get the actual user data from the users collection
+              console.log('🔍 Looking for user data in users collection for ID:', result.athleteId);
+              const userDoc = await getDoc(doc(db, 'users', result.athleteId));
+              console.log('👤 User doc exists:', userDoc.exists());
+
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                console.log('👤 Raw user data:', JSON.stringify(userData, null, 2));
+                athleteData = userData;
+              } else {
+                console.log('❌ User document not found in users collection');
+                // Fallback to membership data if user data not found
+                athleteData = membershipData;
+              }
+            } else {
+              console.log('❌ Membership document not found');
+            }
+
+            // Try different name combinations and fall back to email
+            let athleteName = 'Unknown Athlete';
+
+            if (athleteData.firstName && athleteData.lastName) {
+              athleteName = `${athleteData.firstName} ${athleteData.lastName}`;
+            } else if (athleteData.firstName) {
+              athleteName = athleteData.firstName;
+            } else if (athleteData.lastName) {
+              athleteName = athleteData.lastName;
+            } else if (athleteData.email && athleteData.email !== 'Unknown') {
+              athleteName = athleteData.email;
+            } else if (athleteData.email) {
+              athleteName = athleteData.email;
+            } else {
+              // If no name or email, use athlete ID as fallback
+              athleteName = `Athlete ${result.athleteId.slice(-4)}`;
+            }
+
+            console.log('🏷️ Final athlete name result:', {
+              athleteId: result.athleteId,
+              athleteName,
+              hasFirstName: !!athleteData.firstName,
+              hasLastName: !!athleteData.lastName,
+              hasEmail: !!athleteData.email,
+              emailValue: athleteData.email
+            });
 
             enrichedResults.push({
               ...result,
-              athleteName: athleteData.firstName && athleteData.lastName
-                ? `${athleteData.firstName} ${athleteData.lastName}`
-                : athleteData.email || 'Unknown Athlete',
+              athleteName: athleteName,
               email: athleteData.email || '',
             });
           } catch (error) {
-            console.error('Error getting athlete data:', error);
+            console.error('❌ Error getting athlete data for ID:', result.athleteId, error);
             enrichedResults.push({
               ...result,
-              athleteName: 'Unknown Athlete',
+              athleteName: `Athlete ${result.athleteId.slice(-4)}`, // Show last 4 chars of ID
               email: '',
             });
           }
