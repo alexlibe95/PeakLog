@@ -190,23 +190,25 @@ const CategoryManagement = () => {
 
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Category Management</h1>
-              <p className="text-muted-foreground">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold">Category Management</h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1">
                 Manage performance categories for testing and athlete tracking
               </p>
             </div>
-            <Button onClick={() => openDialog()} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Category
-            </Button>
+            <div className="flex justify-center sm:justify-end">
+              <Button onClick={() => openDialog()} className="flex items-center gap-2 w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                Add Category
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {loading ? (
             <div className="col-span-full flex items-center justify-center py-12">
               <div className="text-center">
@@ -217,13 +219,13 @@ const CategoryManagement = () => {
           ) : categories.length === 0 ? (
             <div className="col-span-full">
               <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Target className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Categories Yet</h3>
-                  <p className="text-muted-foreground text-center mb-4">
+                <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
+                  <Target className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">No Categories Yet</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground text-center mb-4 max-w-md">
                     Create your first performance category to start tracking athlete performance
                   </p>
-                  <Button onClick={() => openDialog()}>
+                  <Button onClick={() => openDialog()} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Create First Category
                   </Button>
@@ -235,27 +237,28 @@ const CategoryManagement = () => {
               return (
                 <Card key={category.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <CardTitle className="text-lg truncate">{category.name}</CardTitle>
+                        <CardTitle className="text-base sm:text-lg truncate">{category.name}</CardTitle>
                         {category.unit && (
-                          <Badge variant="outline" className="mt-1">
+                          <Badge variant="outline" className="mt-1 text-xs">
                             Unit: {category.unit}
                           </Badge>
                         )}
                       </div>
-                      <div className="flex gap-1 ml-2">
+                      <div className="flex gap-1 self-end sm:self-start">
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => openDialog(category)}
+                          className="h-8 w-8 p-0"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-8 w-8 p-0">
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -301,7 +304,7 @@ const CategoryManagement = () => {
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md mx-4">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
                 <DialogTitle>
@@ -361,11 +364,11 @@ const CategoryManagement = () => {
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeDialog}>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+                <Button type="button" variant="outline" onClick={closeDialog} className="w-full sm:w-auto">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={saving || !formData.name.trim()}>
+                <Button type="submit" disabled={saving || !formData.name.trim()} className="w-full sm:w-auto">
                   {saving ? 'Saving...' : (editingCategory ? 'Update Category' : 'Create Category')}
                 </Button>
               </DialogFooter>
