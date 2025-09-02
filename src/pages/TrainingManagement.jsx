@@ -219,14 +219,14 @@ const TrainingManagement = () => {
     if (currentClubId && userProfile) {
       loadData();
     }
-  }, [currentClubId, userProfile, loadData]);
+  }, [currentClubId, userProfile]);
 
   // Generate upcoming days when data is loaded
   useEffect(() => {
     if (currentClubId && !loading && (programs.length > 0 || Object.keys(weeklySchedule).length > 0)) {
       generateUpcomingDays();
     }
-  }, [currentClubId, generateUpcomingDays, weeklySchedule, programs.length, loading]);
+  }, [currentClubId, weeklySchedule, programs.length, loading]);
 
   const handleCreateProgram = async (e) => {
     e.preventDefault();

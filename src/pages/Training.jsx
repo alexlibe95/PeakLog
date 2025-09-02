@@ -154,7 +154,7 @@ const Training = () => {
     if (currentClubId && user) {
       loadData();
     }
-  }, [currentClubId, user, loadCategories, loadTrainingHistory, loadPersonalRecords, loadGoals]);
+  }, [currentClubId, user]);
 
   // Helper functions
   const formatDate = (date) => {

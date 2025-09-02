@@ -12,6 +12,8 @@ import Settings from './pages/Settings';
 import AdminPage from './pages/AdminPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 import AthleteManagement from './pages/AthleteManagement';
+import CategoryManagement from './pages/CategoryManagement';
+import Testing from './pages/Testing';
 
 function App() {
   return (
@@ -77,6 +79,22 @@ function App() {
             element={
               <ProtectedRoute adminOnly>
                 <AthleteManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/category-management"
+            element={
+              <ProtectedRoute adminOnly>
+                <CategoryManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/testing"
+            element={
+              <ProtectedRoute adminOnly>
+                <Testing />
               </ProtectedRoute>
             }
           />

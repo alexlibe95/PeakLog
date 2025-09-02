@@ -131,4 +131,24 @@
   button:hover:not(:disabled) {
     @apply cursor-pointer;
   }
+
+  /* Hide scrollbar utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
+  /* Smooth navigation transitions */
+  .nav-transition {
+    transition: opacity 0.2s ease-in-out;
+  }
+
+  .nav-loading {
+    opacity: 0.7;
+    pointer-events: none;
+  }
 }

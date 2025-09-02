@@ -35,16 +35,25 @@ export const AuthProvider = ({ children }) => {
   const [currentRole, setCurrentRole] = useState(null);
 
   useEffect(() => {
+    let isMounted = true; // Prevent state updates after component unmounts
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isMounted) return;
+
       if (firebaseUser) {
         setUser(firebaseUser);
+
         // Load custom claims
         try {
           const tokenResult = await firebaseUser.getIdTokenResult(true);
-          setClaims(tokenResult?.claims || null);
+          if (isMounted) {
+            setClaims(tokenResult?.claims || null);
+          }
         } catch (e) {
           console.error('Error fetching ID token claims', e);
-          setClaims(null);
+          if (isMounted) {
+            setClaims(null);
+          }
         }
 
         // Fetch user profile from Firestore
@@ -67,25 +76,31 @@ export const AuthProvider = ({ children }) => {
           }
 
           let profile = userDocSnap.data();
-          setUserProfile(profile);
+          if (isMounted) {
+            setUserProfile(profile);
+          }
 
           // Load user memberships
           const userMemberships = await clubService.getUserMemberships(firebaseUser.uid);
-          setMemberships(userMemberships);
+          if (isMounted) {
+            setMemberships(userMemberships);
+          }
 
           // Set default current club and role if user has memberships
-          if (userMemberships.length > 0) {
+          if (userMemberships.length > 0 && isMounted) {
             const firstMembership = userMemberships[0];
             setCurrentClubId(firstMembership.clubId);
             setCurrentRole(firstMembership.role);
           }
 
           // If user not linked yet, try to attach any pending assignments by email
-          if (userMemberships.length === 0 || profile?.role === 'pending') {
+          if ((userMemberships.length === 0 || profile?.role === 'pending') && isMounted) {
             try {
               // Check for pending assignments across all clubs
               const clubsSnap = await getDocs(collection(db, 'clubs'));
               for (const clubDoc of clubsSnap.docs) {
+                if (!isMounted) break;
+
                 const clubId = clubDoc.id;
                 const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', firebaseUser.email.replace('.', '_'));
                 const assignmentSnap = await getDoc(assignmentRef);
@@ -120,13 +135,17 @@ export const AuthProvider = ({ children }) => {
                   // refresh profile and memberships after linking
                   const refreshed = await getDoc(doc(db, 'users', firebaseUser.uid));
                   profile = refreshed.data();
-                  setUserProfile(profile);
+                  if (isMounted) {
+                    setUserProfile(profile);
+                  }
 
                   const refreshedMemberships = await clubService.getUserMemberships(firebaseUser.uid);
-                  setMemberships(refreshedMemberships);
+                  if (isMounted) {
+                    setMemberships(refreshedMemberships);
+                  }
 
                   // Set current club and role if not set
-                  if (!currentClubId && refreshedMemberships.length > 0) {
+                  if (!currentClubId && refreshedMemberships.length > 0 && isMounted) {
                     setCurrentClubId(refreshedMemberships[0].clubId);
                     setCurrentRole(refreshedMemberships[0].role);
                   }
@@ -141,18 +160,26 @@ export const AuthProvider = ({ children }) => {
           console.error('Error fetching user profile:', error);
         }
       } else {
-        setUser(null);
-        setUserProfile(null);
-        setMemberships([]);
-        setCurrentClubId(null);
-        setCurrentRole(null);
-        setClaims(null);
+        if (isMounted) {
+          setUser(null);
+          setUserProfile(null);
+          setMemberships([]);
+          setCurrentClubId(null);
+          setCurrentRole(null);
+          setClaims(null);
+        }
       }
-      setLoading(false);
+
+      if (isMounted) {
+        setLoading(false);
+      }
     });
 
-    return unsubscribe;
-  }, []);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []); // Empty dependency array is correct for onAuthStateChanged
 
   const login = async (email, password) => {
     return signInWithEmailAndPassword(auth, email, password);

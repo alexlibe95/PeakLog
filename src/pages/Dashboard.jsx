@@ -73,6 +73,8 @@ const Dashboard = () => {
   // Dashboard view selection
   const [selectedDashboardRole, setSelectedDashboardRole] = useState('');
   const [selectedDashboardClubId, setSelectedDashboardClubId] = useState('');
+  const [availableRoles, setAvailableRoles] = useState([]);
+  const [availableClubs, setAvailableClubs] = useState([]);
 
   // Get available roles and clubs for current user
   const getAvailableRoles = useCallback(() => {
@@ -293,10 +295,24 @@ const Dashboard = () => {
     setHasWeeklySchedule(null); // Reset weekly schedule state to not loaded when changing clubs
   };
 
+  // Update available roles and clubs when memberships change
+  useEffect(() => {
+    const roles = getAvailableRoles();
+    setAvailableRoles(roles);
+  }, [isSuper, memberships]); // Depend on the actual values, not the functions
+
+  useEffect(() => {
+    if (selectedDashboardRole) {
+      const clubs = getAvailableClubsForRole(selectedDashboardRole);
+      setAvailableClubs(clubs);
+    } else {
+      setAvailableClubs([]);
+    }
+  }, [selectedDashboardRole, memberships]); // Depend on the actual values, not the functions
+
   // Synchronize dashboard view with AuthContext changes (only on initial load)
   const isSuperUser = isSuper();
   useEffect(() => {
-    const availableRoles = getAvailableRoles();
     if (availableRoles.length > 0) {
       // Only set initial values if not already set
       if (!selectedDashboardRole) {
@@ -307,22 +323,17 @@ const Dashboard = () => {
       if (!selectedDashboardClubId) {
         const targetRole = selectedDashboardRole || (isSuperUser ? 'super' : currentRole || availableRoles[0]);
 
-        if (targetRole !== 'super') {
-          const clubsForRole = getAvailableClubsForRole(targetRole);
-          if (clubsForRole.length > 0) {
-            // Check if current club is available for this role, otherwise use first available
-            const currentClubAvailable = clubsForRole.some(club => club.id === currentClubId);
-            const targetClubId = currentClubAvailable ? currentClubId : clubsForRole[0].id;
-            setSelectedDashboardClubId(targetClubId);
-          } else {
-            setSelectedDashboardClubId('');
-          }
+        if (targetRole !== 'super' && availableClubs.length > 0) {
+          // Check if current club is available for this role, otherwise use first available
+          const currentClubAvailable = availableClubs.some(club => club.id === currentClubId);
+          const targetClubId = currentClubAvailable ? currentClubId : availableClubs[0].id;
+          setSelectedDashboardClubId(targetClubId);
         } else {
           setSelectedDashboardClubId('');
         }
       }
     }
-  }, [currentRole, currentClubId, memberships, isSuperUser, selectedDashboardRole, selectedDashboardClubId, getAvailableRoles, getAvailableClubsForRole]);
+  }, [currentRole, currentClubId, memberships, isSuperUser, selectedDashboardRole, selectedDashboardClubId, availableRoles, availableClubs]);
 
   // Refresh training status periodically
   useEffect(() => {
@@ -494,7 +505,7 @@ const Dashboard = () => {
     }, 2000); // Wait 2 seconds for main useEffect to run
 
     return () => clearTimeout(fallbackTimer);
-  }, [dashboardRole, dashboardClubId, hasWeeklySchedule, loadUpcomingTrainingDays]);
+  }, [dashboardRole, dashboardClubId, hasWeeklySchedule]);
 
   const getRoleDisplayName = (role) => {
     switch (role) {
@@ -743,19 +754,19 @@ const Dashboard = () => {
             </div>
 
             {/* Dashboard View Selector - Only show if user has multiple roles or multiple clubs */}
-            {(getAvailableRoles().length > 1 || (dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1)) && (
+            {(availableRoles.length > 1 || (dashboardRole !== 'super' && availableClubs.length > 1)) && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                 <span className="text-sm text-muted-foreground self-start sm:self-center">View as:</span>
 
                 <div className="flex flex-col sm:flex-row gap-2">
                   {/* Role Selector - Only show if user has multiple roles */}
-                  {getAvailableRoles().length > 1 && (
+                  {availableRoles.length > 1 && (
                     <Select value={dashboardRole} onValueChange={handleRoleChange}>
                       <SelectTrigger className="w-full sm:w-40">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {getAvailableRoles().map((role) => (
+                        {availableRoles.map((role) => (
                           <SelectItem key={role} value={role}>
                             <div className="flex items-center gap-2">
                               {role === 'super' && <Crown className="h-3 w-3 text-yellow-600" />}
@@ -770,7 +781,7 @@ const Dashboard = () => {
                   )}
 
                   {/* Club Selector (only show if role requires club selection and has multiple clubs) */}
-                  {dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1 && (
+                  {dashboardRole !== 'super' && availableClubs.length > 1 && (
                     <Select
                       value={selectedDashboardClubId || dashboardClubId}
                       onValueChange={handleClubChange}
@@ -779,7 +790,7 @@ const Dashboard = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {getAvailableClubsForRole(dashboardRole).map((club) => (
+                        {availableClubs.map((club) => (
                           <SelectItem key={club.id} value={club.id}>
                             <div className="flex items-center gap-2">
                               <Shield className="h-3 w-3" />
