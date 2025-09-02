@@ -212,15 +212,15 @@ const AdminMessageManager = ({ clubId }) => {
           {/* Current Message Display */}
           {currentMessage ? (
             <div className={`p-4 rounded-lg border-2 ${getTypeInfo(currentMessage.type).color}`}>
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-lg">{getTypeInfo(currentMessage.type).icon}</span>
-                  <h3 className="font-semibold text-lg">{currentMessage.title}</h3>
-                  <Badge className={getPriorityInfo(currentMessage.priority).color}>
+                  <h3 className="font-semibold text-base sm:text-lg">{currentMessage.title}</h3>
+                  <Badge className={`${getPriorityInfo(currentMessage.priority).color} text-xs`}>
                     {getPriorityInfo(currentMessage.priority).label}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mt-2 sm:mt-0">
                   <Button
                     variant="outline"
                     size="sm"
@@ -285,7 +285,7 @@ const AdminMessageManager = ({ clubId }) => {
                   {currentMessage ? 'Update Message' : 'Post New Message'}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {currentMessage ? 'Update Club Message' : 'Post New Club Message'}
@@ -303,7 +303,7 @@ const AdminMessageManager = ({ clubId }) => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="message-type">Message Type</Label>
                       <Select

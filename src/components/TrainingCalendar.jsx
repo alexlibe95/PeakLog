@@ -332,31 +332,33 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   return (
     <Card className="w-full">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex-1">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Training Calendar
+              <span className="text-base sm:text-lg">Training Calendar</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Manage training schedule, cancellations, and attendance for {clubName}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+          <div className="flex items-center justify-center gap-1 sm:gap-2">
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => navigateMonth(-1)}
+              className="flex-shrink-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="font-medium min-w-[120px] text-center">
+            <span className="font-medium text-sm sm:text-base min-w-0 sm:min-w-[120px] text-center px-2 truncate">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => navigateMonth(1)}
+              className="flex-shrink-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -375,26 +377,28 @@ const TrainingCalendar = ({ clubId, clubName }) => {
         ) : (
           <div className="space-y-4">
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1 overflow-x-auto">
               {/* Header */}
               {weekDays.map(day => (
-                <div key={day} className="p-2 text-center font-medium text-sm text-gray-500">
-                  {day}
+                <div key={day} className="p-1 sm:p-2 text-center font-medium text-xs sm:text-sm text-gray-500">
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day.substring(0, 1)}</span>
                 </div>
               ))}
-              
+
               {/* Calendar Days */}
-              {calendarGrid.map((week, weekIdx) => 
+              {calendarGrid.map((week, weekIdx) =>
                 week.map((day, dayIdx) => (
-                  <div 
+                  <div
                     key={`${weekIdx}-${dayIdx}`}
                     className={`
-                      relative p-2 min-h-[80px] border rounded cursor-pointer hover:bg-gray-50
+                      relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] border rounded cursor-pointer hover:bg-gray-50
                       ${day.isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400'}
-                      ${day.isToday ? 'ring-2 ring-blue-500' : ''}
+                      ${day.isToday ? 'ring-1 sm:ring-2 ring-blue-500' : ''}
+                      text-xs sm:text-sm
                     `}
                   >
-                    <div className="text-sm font-medium">{day.date.getDate()}</div>
+                    <div className="text-xs sm:text-sm font-medium mb-1">{day.date.getDate()}</div>
                     
                     {day.dayData && (
                       <div className="space-y-1 mt-1">
@@ -402,37 +406,40 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                           <div className="text-xs">
                             {day.dayData.isCancelled ? (
                               <div className="space-y-1">
-                                <Badge 
-                                  variant="destructive" 
-                                  className="text-xs px-1 py-0 block w-full"
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs px-1 py-0.5 block w-full text-xs"
                                 >
-                                  <Ban className="h-3 w-3 mr-1" />
-                                  Cancelled
+                                  <Ban className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                  <span className="hidden sm:inline">Cancelled</span>
+                                  <span className="sm:hidden">X</span>
                                 </Badge>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 w-full text-xs p-1"
+                                  className="h-5 sm:h-6 w-full text-xs p-0.5 sm:p-1"
                                   onClick={() => handleRemoveCancellation(day.dayData.cancellationInfo?.id)}
                                 >
-                                  <X className="h-3 w-3 mr-1" />
-                                  Remove
+                                  <X className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                  <span className="hidden sm:inline">Remove</span>
+                                  <span className="sm:hidden">-</span>
                                 </Button>
                               </div>
                             ) : (
                               <div className="space-y-1">
-                                <Badge 
-                                  variant="default" 
-                                  className="text-xs px-1 py-0 block w-full"
+                                <Badge
+                                  variant="default"
+                                  className="text-xs px-1 py-0.5 block w-full text-xs"
                                 >
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {day.dayData.scheduleInfo?.startTime}
+                                  <Clock className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                  <span className="hidden sm:inline">{day.dayData.scheduleInfo?.startTime}</span>
+                                  <span className="sm:hidden">{day.dayData.scheduleInfo?.startTime?.split(':')[0]}h</span>
                                 </Badge>
                                 {day.date <= new Date() && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-full text-xs p-1"
+                                    className="h-5 sm:h-6 w-full text-xs p-0.5 sm:p-1"
                                     onClick={() => {
                                       setSelectedDate(day.date);
                                       setSelectedSession(day.dayData.session);
@@ -442,22 +449,24 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                                       }
                                     }}
                                   >
-                                    <Users className="h-3 w-3 mr-1" />
-                                    Attendance
+                                    <Users className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                    <span className="hidden sm:inline">Attendance</span>
+                                    <span className="sm:hidden">Att.</span>
                                   </Button>
                                 )}
                                 {day.date > new Date() && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-full text-xs p-1"
+                                    className="h-5 sm:h-6 w-full text-xs p-0.5 sm:p-1"
                                     onClick={() => {
                                       setSelectedDate(day.date);
                                       setShowCancellationDialog(true);
                                     }}
                                   >
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    Cancel
+                                    <AlertTriangle className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                    <span className="hidden sm:inline">Cancel</span>
+                                    <span className="sm:hidden">X</span>
                                   </Button>
                                 )}
                               </div>

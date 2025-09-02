@@ -235,6 +235,7 @@ const Dashboard = () => {
 
   // Handle dashboard view changes
   const handleRoleChange = (newRole) => {
+    console.log('Changing role from', selectedDashboardRole, 'to', newRole);
     setSelectedDashboardRole(newRole);
 
     // Reset club selection when changing roles
@@ -243,36 +244,48 @@ const Dashboard = () => {
     } else {
       const clubsForRole = getAvailableClubsForRole(newRole);
       if (clubsForRole.length > 0) {
-        setSelectedDashboardClubId(clubsForRole[0].id);
+        // Prefer current club if available for this role, otherwise use first
+        const currentClubAvailable = clubsForRole.some(club => club.id === currentClubId);
+        const targetClubId = currentClubAvailable ? currentClubId : clubsForRole[0].id;
+        setSelectedDashboardClubId(targetClubId);
+      } else {
+        setSelectedDashboardClubId('');
       }
     }
   };
 
   const handleClubChange = (newClubId) => {
+    console.log('Changing club from', selectedDashboardClubId, 'to', newClubId);
     setSelectedDashboardClubId(newClubId);
   };
 
-  // Synchronize dashboard view with AuthContext changes
+  // Synchronize dashboard view with AuthContext changes (only on initial load)
   const isSuperUser = isSuper();
   useEffect(() => {
     const availableRoles = getAvailableRoles();
     if (availableRoles.length > 0) {
-      // Always synchronize with current AuthContext role when it changes
-      const targetRole = isSuperUser ? 'super' : currentRole || availableRoles[0];
-      setSelectedDashboardRole(targetRole);
+      // Only set initial values if not already set
+      if (!selectedDashboardRole) {
+        const targetRole = isSuperUser ? 'super' : currentRole || availableRoles[0];
+        setSelectedDashboardRole(targetRole);
+      }
 
-      if (targetRole !== 'super') {
-        const clubsForRole = getAvailableClubsForRole(targetRole);
-        if (clubsForRole.length > 0) {
-          // Check if current club is available for this role, otherwise use first available
-          const currentClubAvailable = clubsForRole.some(club => club.id === currentClubId);
-          const targetClubId = currentClubAvailable ? currentClubId : clubsForRole[0].id;
-          setSelectedDashboardClubId(targetClubId);
+      if (!selectedDashboardClubId) {
+        const targetRole = selectedDashboardRole || (isSuperUser ? 'super' : currentRole || availableRoles[0]);
+
+        if (targetRole !== 'super') {
+          const clubsForRole = getAvailableClubsForRole(targetRole);
+          if (clubsForRole.length > 0) {
+            // Check if current club is available for this role, otherwise use first available
+            const currentClubAvailable = clubsForRole.some(club => club.id === currentClubId);
+            const targetClubId = currentClubAvailable ? currentClubId : clubsForRole[0].id;
+            setSelectedDashboardClubId(targetClubId);
+          } else {
+            setSelectedDashboardClubId('');
+          }
         } else {
           setSelectedDashboardClubId('');
         }
-      } else {
-        setSelectedDashboardClubId('');
       }
     }
   }, [currentRole, currentClubId, memberships, isSuperUser, selectedDashboardRole, selectedDashboardClubId, getAvailableRoles, getAvailableClubsForRole]);
@@ -748,61 +761,63 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">{getDashboardTitle()}</h1>
-              <p className="text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold">{getDashboardTitle()}</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">
                 {getDashboardSubtitle()}
               </p>
             </div>
 
             {/* Dashboard View Selector - Only show if user has multiple roles or multiple clubs */}
             {(getAvailableRoles().length > 1 || (dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1)) && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">View as:</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <span className="text-sm text-muted-foreground self-start sm:self-center">View as:</span>
 
-                {/* Role Selector - Only show if user has multiple roles */}
-                {getAvailableRoles().length > 1 && (
-                  <Select value={dashboardRole} onValueChange={handleRoleChange}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableRoles().map((role) => (
-                        <SelectItem key={role} value={role}>
-                          <div className="flex items-center gap-2">
-                            {role === 'super' && <Crown className="h-3 w-3 text-yellow-600" />}
-                            {role === 'admin' && <Shield className="h-3 w-3 text-blue-600" />}
-                            {role === 'athlete' && <Users className="h-3 w-3 text-green-600" />}
-                            {role === 'super' ? 'Super Admin' : role.charAt(0).toUpperCase() + role.slice(1)}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Role Selector - Only show if user has multiple roles */}
+                  {getAvailableRoles().length > 1 && (
+                    <Select value={dashboardRole} onValueChange={handleRoleChange}>
+                      <SelectTrigger className="w-full sm:w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableRoles().map((role) => (
+                          <SelectItem key={role} value={role}>
+                            <div className="flex items-center gap-2">
+                              {role === 'super' && <Crown className="h-3 w-3 text-yellow-600" />}
+                              {role === 'admin' && <Shield className="h-3 w-3 text-blue-600" />}
+                              {role === 'athlete' && <Users className="h-3 w-3 text-green-600" />}
+                              {role === 'super' ? 'Super Admin' : role.charAt(0).toUpperCase() + role.slice(1)}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
 
-                {/* Club Selector (only show if role requires club selection and has multiple clubs) */}
-                {dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1 && (
-                  <Select
-                    value={selectedDashboardClubId || dashboardClubId}
-                    onValueChange={handleClubChange}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableClubsForRole(dashboardRole).map((club) => (
-                        <SelectItem key={club.id} value={club.id}>
-                          <div className="flex items-center gap-2">
-                            <Shield className="h-3 w-3" />
-                            {club.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                  {/* Club Selector (only show if role requires club selection and has multiple clubs) */}
+                  {dashboardRole !== 'super' && getAvailableClubsForRole(dashboardRole).length > 1 && (
+                    <Select
+                      value={selectedDashboardClubId || dashboardClubId}
+                      onValueChange={handleClubChange}
+                    >
+                      <SelectTrigger className="w-full sm:w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableClubsForRole(dashboardRole).map((club) => (
+                          <SelectItem key={club.id} value={club.id}>
+                            <div className="flex items-center gap-2">
+                              <Shield className="h-3 w-3" />
+                              {club.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -948,30 +963,32 @@ const Dashboard = () => {
                   : 'border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100'
               }`}>
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-3 text-lg">
-                    <div className="text-xl">
-                      {clubMessage.type === 'general' ? '📢' :
-                       clubMessage.type === 'reminder' ? '⏰' :
-                       clubMessage.type === 'equipment' ? '🎒' :
-                       clubMessage.type === 'schedule' ? '📅' :
-                       clubMessage.type === 'important' ? '❗' :
-                       clubMessage.type === 'motivation' ? '💪' : '📢'}
+                  <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-base sm:text-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="text-lg sm:text-xl">
+                        {clubMessage.type === 'general' ? '📢' :
+                         clubMessage.type === 'reminder' ? '⏰' :
+                         clubMessage.type === 'equipment' ? '🎒' :
+                         clubMessage.type === 'schedule' ? '📅' :
+                         clubMessage.type === 'important' ? '❗' :
+                         clubMessage.type === 'motivation' ? '💪' : '📢'}
+                      </div>
+                      <span>Coach Message</span>
                     </div>
-                    <span>Coach Message</span>
-                    <Badge className={
+                    <Badge className={`text-xs ${
                       clubMessage.priority === 'urgent' ? 'bg-red-500 text-white' :
                       clubMessage.priority === 'high' ? 'bg-orange-500 text-white' :
                       clubMessage.priority === 'normal' ? 'bg-blue-500 text-white' :
                       'bg-gray-500 text-white'
-                    }>
+                    }`}>
                       {clubMessage.priority === 'urgent' ? 'URGENT' :
-                       clubMessage.priority === 'high' ? 'HIGH PRIORITY' :
-                       clubMessage.priority === 'normal' ? 'NORMAL' : 'LOW PRIORITY'}
+                       clubMessage.priority === 'high' ? 'HIGH' :
+                       clubMessage.priority === 'normal' ? 'NORMAL' : 'LOW'}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <h3 className="font-semibold text-lg mb-3 text-primary">
+                  <h3 className="font-semibold text-base sm:text-lg mb-3 text-primary">
                     {clubMessage.title}
                   </h3>
                   <p className="leading-relaxed mb-3">
@@ -1447,7 +1464,7 @@ const Dashboard = () => {
 
         {/* Attendance Management Dialog */}
         <Dialog open={showAttendanceDialog} onOpenChange={setShowAttendanceDialog}>
-          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <span className="text-lg">📊</span>
@@ -1467,7 +1484,7 @@ const Dashboard = () => {
                 {/* Session Info */}
                 <div className="p-3 sm:p-4 bg-primary/5 rounded-lg border">
                   <h4 className="font-semibold mb-2 truncate">{currentTrainingSession.programName}</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Date:</span>
                       <div className="font-medium">
