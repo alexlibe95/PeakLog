@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Navigation from '../components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/toast-context";
 import { doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../lib/firebase';
-import { User, Mail, Settings as SettingsIcon, Camera, Upload, X, Shield, Users, Lock, Eye, EyeOff } from 'lucide-react';
+import { db } from '../lib/firebase';
+import { User, Mail, Settings as SettingsIcon, Shield, Users, Lock, Eye, EyeOff } from 'lucide-react';
 
 const Settings = () => {
   const { user, userProfile, updateUserProfile, memberships, isSuper, changePassword } = useAuth();
@@ -22,10 +21,6 @@ const Settings = () => {
     lastName: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const fileInputRef = useRef(null);
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -49,15 +44,6 @@ const Settings = () => {
     }
   }, [userProfile]);
 
-  // Cleanup preview URL when component unmounts or when previewUrl changes
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -65,132 +51,7 @@ const Settings = () => {
     }));
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Invalid File",
-        description: "Please select an image file.",
-        variant: "destructive",
-      });
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File Too Large",
-        description: "Please select an image smaller than 5MB.",
-        variant: "destructive",
-      });
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      return;
-    }
-
-    // Clean up previous preview URL if it exists
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-
-    setSelectedFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile || !user) return;
-
-    setIsUploading(true);
-    let uploadedImageRef = null;
-
-    try {
-      // Upload new image first
-      const fileName = `profile-pictures/${user.uid}/${Date.now()}-${selectedFile.name}`;
-      uploadedImageRef = ref(storage, fileName);
-      await uploadBytes(uploadedImageRef, selectedFile);
-
-      // Get download URL
-      const downloadURL = await getDownloadURL(uploadedImageRef);
-
-      // Update user profile in Firestore
-      await updateDoc(doc(db, 'users', user.uid), {
-        profilePicture: downloadURL,
-        updatedAt: new Date()
-      });
-
-      // Update local state
-      await updateUserProfile({
-        ...userProfile,
-        profilePicture: downloadURL
-      });
-
-      // Delete old image after successful upload and update
-      if (userProfile?.profilePicture && userProfile.profilePicture !== downloadURL) {
-        try {
-          // Extract the path from the old URL to create a proper reference
-          const oldImageUrl = new URL(userProfile.profilePicture);
-          const oldImagePath = decodeURIComponent(oldImageUrl.pathname.split('/o/')[1].split('?')[0]);
-          const oldImageRef = ref(storage, oldImagePath);
-          await deleteObject(oldImageRef);
-        } catch (error) {
-          console.error('Error deleting old image:', error);
-          // Don't fail the whole operation if old image deletion fails
-        }
-      }
-
-      // Clean up
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-
-      toast({
-        title: "Profile Picture Updated",
-        description: "Your profile picture has been uploaded successfully.",
-      });
-    } catch (error) {
-      console.error('Error uploading profile picture:', error);
-
-      // If upload failed and we created a storage reference, try to clean it up
-      if (uploadedImageRef) {
-        try {
-          await deleteObject(uploadedImageRef);
-        } catch (cleanupError) {
-          console.error('Error cleaning up failed upload:', cleanupError);
-        }
-      }
-
-      toast({
-        title: "Upload Failed",
-        description: error.message || "Failed to upload profile picture. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setSelectedFile(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -364,66 +225,21 @@ const Settings = () => {
                 {/* Profile Picture Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                        {previewUrl || userProfile?.profilePicture ? (
-                          <img
-                            src={previewUrl || userProfile.profilePicture}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User className="w-8 h-8 text-muted-foreground" />
-                        )}
-                      </div>
-                      {selectedFile && (
-                        <div className="absolute -top-1 -right-1 flex gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            className="w-6 h-6 p-0"
-                            onClick={handleUpload}
-                            disabled={isUploading}
-                          >
-                            {isUploading ? '...' : <Upload className="w-3 h-3" />}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            className="w-6 h-6 p-0"
-                            onClick={handleCancel}
-                            disabled={isUploading}
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
+                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                      {userProfile?.profilePicture ? (
+                        <img
+                          src={userProfile.profilePicture}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-8 h-8 text-muted-foreground" />
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label>Profile Picture</Label>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
-                        >
-                          <Camera className="w-4 h-4 mr-2" />
-                          {selectedFile ? 'Change Photo' : 'Upload Photo'}
-                        </Button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
-                      </div>
                       <p className="text-xs text-muted-foreground">
-                        Max 5MB. Supports JPG, PNG, GIF.
+                        Profile picture upload is currently disabled.
                       </p>
                     </div>
                   </div>
