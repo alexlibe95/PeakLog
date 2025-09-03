@@ -2,6 +2,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper functions
     function isSignedIn() { return request.auth != null; }
     function userRole() {
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -10,164 +12,157 @@ service cloud.firestore {
     }
     function isSuper() { return userRole() == 'super'; }
     function isAdmin() { return userRole() == 'admin' || isSuper(); }
-    // Users can read/write their own user document
+    function isClubMember(clubId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid));
+    }
+    function isClubAdmin(clubId) {
+      return isClubMember(clubId) &&
+        get(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'];
+    }
+
+    // ===== USER PROFILES =====
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      // Writes to users collection should be limited; allow self-updates to non-privileged fields.
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
-    
-    // Training logs - users can CRUD their own, admins can read all
-    match /trainingLogs/{logId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow read: if request.auth != null && 
-        isAdmin();
-    }
-    
-    // Personal records - users can CRUD their own, admins can read all
-    match /personalRecords/{recordId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow read: if request.auth != null && 
-        isAdmin();
-    }
-    
-    // Attendance records - users can read their own, admins can CRUD all
-    match /attendance/{attendanceId} {
-      allow read: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow read, write: if request.auth != null && 
-        isAdmin();
-    }
 
-    // Club-specific rules
+    // ===== CLUBS COLLECTION =====
     match /clubs/{clubId} {
-      // Club documents - admins can read/write clubs they belong to
+      // Club info - all authenticated users can read, super admins can write
       allow read: if isSignedIn();
       allow write: if isSuper();
-      
-      // Club members - admins of the club can manage
+
+      // ===== CLUB MEMBERS =====
       match /members/{memberId} {
-        allow read, write: if isAdmin();
-      }
-      
-      // Club settings (weekly schedule, cancellations) - admins can manage
-      match /settings/{settingId} {
-        allow read, write: if isAdmin();
-      }
-      
-      // Training programs - admins can manage
-      match /programs/{programId} {
-        allow read, write: if isAdmin();
-      }
-      
-      // Training sessions - admins can manage
-      match /sessions/{sessionId} {
-        allow read, write: if isAdmin();
-        
-        // Session attendance - admins can manage
-        match /attendance/{attendanceId} {
-          allow read, write: if isAdmin();
-        }
-      }
-      
-      // Pending assignments - admins can manage
-      match /pendingAssignments/{assignmentId} {
-        allow read, write: if isAdmin();
-      }
-      
-      // Club messages - admins can manage, all club members can read
-      match /messages/{messageId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
-      }
-    }
-
-    // Training programs - global collection for all clubs
-    match /trainingPrograms/{programId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Training sessions - global collection for all clubs  
-    match /trainingSessions/{sessionId} {
-      allow read, write: if isAdmin();
-      
-      // Session attendance - nested under sessions
-      match /attendance/{attendanceId} {
-        allow read, write: if isAdmin();
-        // Athletes can read their own attendance
-        allow read: if isSignedIn() && request.auth.uid == resource.data.athleteId;
-      }
-    }
-    
-    // Goals - users can CRUD their own, admins can read all
-    match /goals/{goalId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow read: if request.auth != null && 
-        isAdmin();
-    }
-    
-    // Teams - admins can CRUD, users can read their team info
-    match /teams/{teamId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-    
-    // Performance Categories - admins can CRUD, users can read categories from their clubs
-    match /performanceCategories/{categoryId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && isAdmin();
-    }
-    
-    // Athlete Records - users can CRUD their own, admins can CRUD all in their clubs
-    match /athleteRecords/{recordId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid == resource.data.athleteId;
-      allow read, write: if request.auth != null && 
-        isAdmin();
-    }
-    
-    // Athlete Goals - users can CRUD their own, admins can CRUD all in their clubs
-    match /athleteGoals/{goalId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid == resource.data.athleteId;
-      allow read, write: if request.auth != null && 
-        isAdmin();
-    }
-
-    // Clubs multi-tenant model
-    match /clubs/{clubId} {
-      allow read: if isSignedIn() && isAdmin();
-      allow write: if isSignedIn() && isSuper();
-
-      match /members/{memberId} {
-        allow read: if isSignedIn() && (isAdmin() || isSuper() || request.auth.uid == memberId);
-        // Allow admin/super to manage memberships
+        allow read: if isSignedIn() && (isAdmin() || isSuper() || isClubMember(clubId));
         allow write: if isSignedIn() && (isAdmin() || isSuper());
-        // Allow invited user to create their own membership using a valid inviteId field
+        // Allow invited user to create their own membership
         allow create: if isSignedIn() && request.auth.uid == memberId &&
           request.resource.data.inviteId is string &&
           exists(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)) &&
           get(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)).data.email == request.auth.token.email;
       }
 
+      // ===== CLUB INVITES =====
       match /invites/{inviteId} {
-        // Allow invited user to read their invite by email; admins/supers can manage
         allow read: if isSignedIn() && (
           (request.auth.token.email == resource.data.email) ||
           isAdmin() || isSuper()
         );
-        // Admins/supers can create/delete; invited user can delete their own invite
         allow create: if isSignedIn() && (isAdmin() || isSuper());
-        allow delete: if isSignedIn() && ((isAdmin() || isSuper()) || request.auth.token.email == resource.data.email);
-        // Allow invited user to mark invite as used
-        allow update: if isSignedIn() && request.auth.token.email == resource.data.email;
+        allow update, delete: if isSignedIn() && (
+          (isAdmin() || isSuper()) ||
+          request.auth.token.email == resource.data.email
+        );
+      }
+
+      // ===== CLUB SETTINGS =====
+      match /settings/{settingId} {
+        allow read, write: if isClubAdmin(clubId) || isSuper();
+      }
+
+      // ===== TRAINING PROGRAMS =====
+      match /programs/{programId} {
+        allow read, write: if isClubAdmin(clubId) || isSuper();
+      }
+
+      // ===== TRAINING SESSIONS =====
+      match /sessions/{sessionId} {
+        allow read: if isClubMember(clubId) || isAdmin();
+        allow write: if isClubAdmin(clubId) || isSuper();
+
+        // Session attendance
+        match /attendance/{attendanceId} {
+          allow read: if isClubMember(clubId) || isAdmin();
+          allow write: if isClubAdmin(clubId) || isSuper();
+        }
+      }
+
+      // ===== CLUB MESSAGES =====
+      match /messages/{messageId} {
+        allow read: if isClubMember(clubId) || isAdmin();
+        allow write: if isClubAdmin(clubId) || isSuper();
+      }
+
+      // ===== PENDING ASSIGNMENTS =====
+      match /pendingAssignments/{assignmentId} {
+        allow read, write: if isClubAdmin(clubId) || isSuper();
       }
     }
 
-    // Deny all other reads/writes
+    // ===== GLOBAL COLLECTIONS =====
+
+    // Training Programs
+    match /trainingPrograms/{programId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Training Sessions
+    match /trainingSessions/{sessionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+
+      match /attendance/{attendanceId} {
+        allow read: if isSignedIn() && request.auth.uid == resource.data.athleteId;
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // ===== PERFORMANCE DATA =====
+
+    // Performance Categories
+    match /performanceCategories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Athlete Records
+    match /athleteRecords/{recordId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.athleteId;
+      allow read, write: if isAdmin();
+    }
+
+    // Athlete Goals
+    match /athleteGoals/{goalId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.athleteId;
+      allow read, write: if isAdmin();
+    }
+
+    // Personal Records (from tests)
+    match /personalRecords/{recordId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+      allow read: if isAdmin();
+    }
+
+    // Test Sessions
+    match /testSessions/{sessionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Test Results
+    match /testResults/{resultId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Legacy collections (for backwards compatibility)
+    match /personalRecords/{recordId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+      allow read: if isAdmin();
+    }
+
+    match /goals/{goalId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+      allow read: if isAdmin();
+    }
+
+    // ===== DENY ALL OTHER ACCESS =====
     match /{document=**} {
       allow read, write: if false;
     }
