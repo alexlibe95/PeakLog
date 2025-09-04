@@ -275,6 +275,78 @@ export const testService = {
     }
   },
 
+  /**
+   * Delete all test results for a specific test
+   */
+  async deleteTestResults(testId) {
+    try {
+      const resultsQuery = query(
+        collection(db, 'testResults'),
+        where('testId', '==', testId)
+      );
+
+      const resultsSnap = await getDocs(resultsQuery);
+      const deletePromises = resultsSnap.docs.map(doc => deleteDoc(doc.ref));
+
+      await Promise.all(deletePromises);
+      console.log(`🗑️ Deleted ${resultsSnap.size} test results for test ${testId}`);
+    } catch (error) {
+      console.error('Error deleting test results:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete personal records that were created from a specific test
+   */
+  async deletePersonalRecordsFromTest(testId, athleteId, categoryId) {
+    try {
+      const pbQuery = query(
+        collection(db, 'personalRecords'),
+        where('athleteId', '==', athleteId),
+        where('categoryId', '==', categoryId),
+        where('testId', '==', testId)
+      );
+
+      const pbSnap = await getDocs(pbQuery);
+      const deletePromises = pbSnap.docs.map(doc => deleteDoc(doc.ref));
+
+      await Promise.all(deletePromises);
+      if (pbSnap.size > 0) {
+        console.log(`🗑️ Deleted ${pbSnap.size} personal records for athlete ${athleteId}`);
+      }
+    } catch (error) {
+      console.error('Error deleting personal records:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete goals that were completed from a specific test
+   */
+  async deleteGoalsFromTest(testId, athleteId, categoryId) {
+    try {
+      const goalsQuery = query(
+        collection(db, 'goals'),
+        where('athleteId', '==', athleteId),
+        where('categoryId', '==', categoryId),
+        where('status', '==', 'completed'),
+        where('completedTestId', '==', testId)
+      );
+
+      const goalsSnap = await getDocs(goalsQuery);
+      const deletePromises = goalsSnap.docs.map(doc => deleteDoc(doc.ref));
+
+      await Promise.all(deletePromises);
+      if (goalsSnap.size > 0) {
+        console.log(`🗑️ Deleted ${goalsSnap.size} completed goals for athlete ${athleteId}`);
+      }
+    } catch (error) {
+      console.error('Error deleting goals:', error);
+      throw error;
+    }
+  },
+
   // ===== ATHLETE PERFORMANCE TRACKING =====
 
   /**
@@ -332,7 +404,7 @@ export const testService = {
   /**
    * Check and update athlete goals based on test results
    */
-  async checkAndUpdateGoals(athleteId, categoryId, testValue) {
+  async checkAndUpdateGoals(athleteId, categoryId, testValue, testId) {
     try {
       const goalsQuery = query(
         collection(db, 'goals'),
@@ -355,6 +427,7 @@ export const testService = {
               status: 'completed',
               completedDate: Timestamp.now(),
               completedValue: testValue,
+              completedTestId: testId,
               updatedAt: Timestamp.now(),
             })
           );

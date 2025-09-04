@@ -12,7 +12,8 @@ import { useAuth } from '@/context/AuthContext';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
 import { testService } from '@/services/testService';
 import { clubService } from '@/services/clubService';
-import { Plus, Calendar, Target, TrendingUp, ChevronDown, ChevronUp, Save, Users, Edit, X, Check } from 'lucide-react';
+import { parsePerformanceValue, formatTimeValue, isTimeUnit } from '@/utils/valueParser';
+import { Plus, Calendar, Target, TrendingUp, ChevronDown, ChevronUp, Save, Users, Edit, X, Check, Trash2 } from 'lucide-react';
 
 const Testing = () => {
   const { user, currentClubId, memberships } = useAuth();
@@ -52,17 +53,6 @@ const Testing = () => {
 
   const effectiveClubId = getEffectiveClubId();
 
-  // Debug logging (can be removed later)
-  console.log('🔍 Testing component debug:', {
-    user: user?.uid,
-    currentClubId,
-    effectiveClubId,
-    memberships: memberships.map(m => ({ clubId: m.clubId, role: m.role })),
-    isAdmin: useAuth().isAdmin(),
-    isSuper: useAuth().isSuper(),
-    isAdminOfClub: useAuth().isAdmin(effectiveClubId),
-    isSuperOfClub: useAuth().isSuper()
-  });
 
   // Load initial data
   const loadData = useCallback(async () => {
@@ -155,13 +145,27 @@ const Testing = () => {
       });
 
       // Add results for athletes who have values - batch them all together
+      const selectedCategoryData = getCategory(selectedCategory);
       const results = Object.entries(athleteResults)
         .filter(([_, result]) => result && result.trim() !== '')
-        .map(([athleteId, result]) => ({
-          athleteId,
-          value: parseFloat(result.trim()),
-          categoryId: selectedCategory
-        }));
+        .map(([athleteId, result]) => {
+          try {
+            const parsedValue = parsePerformanceValue(result.trim(), selectedCategoryData?.unit);
+            return {
+              athleteId,
+              value: parsedValue,
+              categoryId: selectedCategory
+            };
+          } catch (error) {
+            console.error(`Error parsing value for athlete ${athleteId}:`, error.message);
+            toast({
+              title: 'Invalid value format',
+              description: `Please check the format for athlete result: ${error.message}`,
+              variant: 'destructive'
+            });
+            throw error;
+          }
+        });
 
       if (results.length > 0) {
         await testService.addTestResults(testSession.id, results, effectiveClubId);
@@ -171,17 +175,19 @@ const Testing = () => {
       await Promise.all(
         Object.entries(athleteResults)
           .filter(([_, result]) => result && result.trim() !== '')
-          .map(([athleteId, result]) =>
-            testService.updateAthletePBIfBetter(athleteId, selectedCategory, parseFloat(result.trim()), testSession.id)
-          )
+          .map(([athleteId, result]) => {
+            const parsedValue = parsePerformanceValue(result.trim(), selectedCategoryData?.unit);
+            return testService.updateAthletePBIfBetter(athleteId, selectedCategory, parsedValue, testSession.id);
+          })
       );
 
       await Promise.all(
         Object.entries(athleteResults)
           .filter(([_, result]) => result && result.trim() !== '')
-          .map(([athleteId, result]) =>
-            testService.checkAndUpdateGoals(athleteId, selectedCategory, parseFloat(result.trim()))
-          )
+          .map(([athleteId, result]) => {
+            const parsedValue = parsePerformanceValue(result.trim(), selectedCategoryData?.unit);
+            return testService.checkAndUpdateGoals(athleteId, selectedCategory, parsedValue, testSession.id);
+          })
       );
 
       toast({
@@ -289,6 +295,69 @@ const Testing = () => {
     }));
   };
 
+  // Delete test with all related data
+  const deleteTest = async (test) => {
+    if (!window.confirm(`Are you sure you want to delete this test? This will also delete all results, personal records, and completed goals from this test. This action cannot be undone.`)) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      console.log('🗑️ Deleting test:', test.id);
+
+      // Delete all test results for this test
+      console.log('🗑️ Deleting test results...');
+      await testService.deleteTestResults(test.id);
+
+      // Delete the test session itself
+      console.log('🗑️ Deleting test session...');
+      await testService.deleteTestSession(test.id);
+
+      // Delete personal records that were set from this test
+      if (test.results && test.results.length > 0) {
+        console.log('🗑️ Deleting related personal records...');
+        for (const result of test.results) {
+          try {
+            await testService.deletePersonalRecordsFromTest(test.id, result.athleteId, test.categoryId);
+          } catch (error) {
+            console.error(`Error deleting PB for athlete ${result.athleteId}:`, error);
+          }
+        }
+      }
+
+      // Delete goals that were completed from this test
+      if (test.results && test.results.length > 0) {
+        console.log('🗑️ Deleting related goals...');
+        for (const result of test.results) {
+          try {
+            await testService.deleteGoalsFromTest(test.id, result.athleteId, test.categoryId);
+          } catch (error) {
+            console.error(`Error deleting goals for athlete ${result.athleteId}:`, error);
+          }
+        }
+      }
+
+      toast({
+        title: 'Test deleted successfully',
+        description: 'Test and all related data have been deleted.'
+      });
+
+      // Reset editing state and reload data
+      cancelEditing();
+      await loadData();
+
+    } catch (error) {
+      console.error('❌ Error deleting test:', error);
+      toast({
+        title: 'Error deleting test',
+        description: error.message || 'Failed to delete test.',
+        variant: 'destructive'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Save edited test
   const saveEditedTest = async () => {
     if (!editingTest || !editingTestData.categoryId || !editingTestData.date) {
@@ -320,29 +389,45 @@ const Testing = () => {
       });
 
       // Update results - delete existing and add new ones
+      const editingCategoryData = getCategory(editingTestData.categoryId);
       await testService.updateTestResults(editingTest.id, Object.entries(editingTestData.results)
         .filter(([_, result]) => result && result.trim() !== '')
-        .map(([athleteId, result]) => ({
-          athleteId,
-          value: parseFloat(result.trim()),
-          categoryId: editingTestData.categoryId
-        })), effectiveClubId);
+        .map(([athleteId, result]) => {
+          try {
+            const parsedValue = parsePerformanceValue(result.trim(), editingCategoryData?.unit);
+            return {
+              athleteId,
+              value: parsedValue,
+              categoryId: editingTestData.categoryId
+            };
+          } catch (error) {
+            console.error(`Error parsing value for athlete ${athleteId}:`, error.message);
+            toast({
+              title: 'Invalid value format',
+              description: `Please check the format for athlete result: ${error.message}`,
+              variant: 'destructive'
+            });
+            throw error;
+          }
+        }), effectiveClubId);
 
       // Update athlete PBs and goals for new results
       await Promise.all(
         Object.entries(editingTestData.results)
           .filter(([_, result]) => result && result.trim() !== '')
-          .map(([athleteId, result]) =>
-            testService.updateAthletePBIfBetter(athleteId, editingTestData.categoryId, parseFloat(result.trim()), editingTest.id)
-          )
+          .map(([athleteId, result]) => {
+            const parsedValue = parsePerformanceValue(result.trim(), editingCategoryData?.unit);
+            return testService.updateAthletePBIfBetter(athleteId, editingTestData.categoryId, parsedValue, editingTest.id);
+          })
       );
 
       await Promise.all(
         Object.entries(editingTestData.results)
           .filter(([_, result]) => result && result.trim() !== '')
-          .map(([athleteId, result]) =>
-            testService.checkAndUpdateGoals(athleteId, editingTestData.categoryId, parseFloat(result.trim()))
-          )
+          .map(([athleteId, result]) => {
+            const parsedValue = parsePerformanceValue(result.trim(), editingCategoryData?.unit);
+            return testService.checkAndUpdateGoals(athleteId, editingTestData.categoryId, parsedValue, editingTest.id);
+          })
       );
 
       toast({
@@ -378,6 +463,11 @@ const Testing = () => {
   const getCategoryUnit = (categoryId) => {
     const category = categories.find(c => c.id === categoryId);
     return category ? category.unit : '';
+  };
+
+  // Get category by ID
+  const getCategory = (categoryId) => {
+    return categories.find(c => c.id === categoryId);
   };
 
 
@@ -482,9 +572,9 @@ const Testing = () => {
                             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                               <div className="w-20 sm:w-24">
                                 <Input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="0.00"
+                                  type={isTimeUnit(getCategoryUnit(selectedCategory)) ? "text" : "number"}
+                                  step={isTimeUnit(getCategoryUnit(selectedCategory)) ? undefined : "0.01"}
+                                  placeholder={isTimeUnit(getCategoryUnit(selectedCategory)) ? "0:00.00" : "0.00"}
                                   value={athleteResults[athlete.id] || ''}
                                   onChange={(e) => handleAthleteResultChange(athlete.id, e.target.value)}
                                   className="text-right text-sm h-8 sm:h-9"
@@ -679,9 +769,9 @@ const Testing = () => {
                                               <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                                                 <div className="w-20 sm:w-24">
                                                   <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    placeholder="0.00"
+                                                    type={isTimeUnit(getCategoryUnit(editingTestData.categoryId)) ? "text" : "number"}
+                                                    step={isTimeUnit(getCategoryUnit(editingTestData.categoryId)) ? undefined : "0.01"}
+                                                    placeholder={isTimeUnit(getCategoryUnit(editingTestData.categoryId)) ? "0:00.00" : "0.00"}
                                                     value={editingTestData.results[athlete.id] || ''}
                                                     onChange={(e) => handleEditingResultChange(athlete.id, e.target.value)}
                                                     className="text-right text-sm h-8 sm:h-9"
@@ -714,7 +804,9 @@ const Testing = () => {
                                                 </div>
                                               <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                                                 <span className="font-mono text-sm bg-background px-2 py-1 rounded border text-center min-w-16 sm:min-w-20">
-                                                  {result.value}
+                                                  {isTimeUnit(getCategoryUnit(test.categoryId))
+                                                    ? formatTimeValue(result.value)
+                                                    : result.value}
                                                 </span>
                                                 <span className="text-xs sm:text-sm text-muted-foreground min-w-6 sm:min-w-8 text-center">
                                                   {getCategoryUnit(test.categoryId)}
@@ -746,14 +838,26 @@ const Testing = () => {
                                       </span>
                                     </Button>
                                     <Button
+                                      onClick={() => deleteTest(test)}
+                                      disabled={saving}
+                                      size="sm"
+                                      variant="destructive"
+                                      className="flex items-center gap-2 h-10 px-4"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="text-sm font-medium">
+                                        {saving ? 'Deleting...' : 'Delete Test'}
+                                      </span>
+                                    </Button>
+                                    <Button
                                       variant="outline"
                                       onClick={cancelEditing}
                                       disabled={saving}
                                       size="sm"
-                                      className="flex items-center gap-2 border-red-300 text-red-600 hover:bg-red-50 h-10 px-4"
+                                      className="flex items-center gap-2 border-gray-300 text-gray-600 hover:bg-gray-50 h-10 px-4"
                                     >
                                       <X className="h-4 w-4" />
-                                      <span className="text-sm font-medium">Cancel Editing</span>
+                                      <span className="text-sm font-medium">Cancel</span>
                                     </Button>
                                   </div>
                                 </div>
