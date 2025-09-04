@@ -146,7 +146,12 @@ service cloud.firestore {
     // Test Results
     match /testResults/{resultId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isSignedIn() && (
+        isSuper() ||
+        (resource.data.clubId != null &&
+         exists(/databases/$(database)/documents/clubs/$(resource.data.clubId)/members/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/clubs/$(resource.data.clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'])
+      );
     }
 
     // Legacy collections (for backwards compatibility)

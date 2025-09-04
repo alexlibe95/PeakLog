@@ -150,7 +150,7 @@ export const testService = {
   /**
    * Add test results for a session
    */
-  async addTestResults(testId, results) {
+  async addTestResults(testId, results, clubId) {
     try {
       const batch = [];
 
@@ -159,7 +159,9 @@ export const testService = {
           testId,
           athleteId: result.athleteId,
           value: parseFloat(result.value),
+          categoryId: result.categoryId,
           notes: result.notes || '',
+          clubId: clubId, // Include clubId for security rules
           createdAt: Timestamp.now(),
         };
 
@@ -177,7 +179,7 @@ export const testService = {
   /**
    * Update test results for a session (replace existing results)
    */
-  async updateTestResults(testId, results) {
+  async updateTestResults(testId, results, clubId) {
     try {
       // First, delete all existing results for this test
       const existingResultsQuery = query(
@@ -205,6 +207,7 @@ export const testService = {
             value: parseFloat(result.value),
             categoryId: result.categoryId,
             notes: result.notes || '',
+            clubId: clubId, // Include clubId for security rules
             createdAt: Timestamp.now(),
           };
 

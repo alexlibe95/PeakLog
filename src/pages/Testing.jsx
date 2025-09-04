@@ -150,7 +150,7 @@ const Testing = () => {
             athleteId,
             value: parseFloat(result.trim()),
             categoryId: selectedCategory
-          }])
+          }], effectiveClubId)
         );
 
       await Promise.all(resultPromises);
@@ -314,7 +314,7 @@ const Testing = () => {
           athleteId,
           value: parseFloat(result.trim()),
           categoryId: editingTestData.categoryId
-        })));
+        })), effectiveClubId);
 
       // Update athlete PBs and goals for new results
       await Promise.all(
