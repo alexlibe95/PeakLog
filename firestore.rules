@@ -11,7 +11,12 @@ service cloud.firestore {
         : null;
     }
     function isSuper() { return userRole() == 'super'; }
-    function isAdmin() { return userRole() == 'admin' || isSuper(); }
+    function isAdmin() {
+      return userRole() == 'admin' ||
+             isSuper() ||
+             (isSignedIn() && exists(/databases/$(database)/documents/clubs/{clubId}/members/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/clubs/{clubId}/members/$(request.auth.uid)).data.role in ['admin', 'super']);
+    }
     function isClubMember(clubId) {
       return isSignedIn() && exists(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid));
     }
@@ -22,7 +27,11 @@ service cloud.firestore {
 
     // ===== USER PROFILES =====
     match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isAdmin() ||
+        isSuper()
+      );
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
@@ -34,13 +43,19 @@ service cloud.firestore {
 
       // ===== CLUB MEMBERS =====
       match /members/{memberId} {
-        allow read: if isSignedIn() && (isAdmin() || isSuper() || isClubMember(clubId));
-        allow write: if isSignedIn() && (isAdmin() || isSuper());
+        allow read: if isSignedIn() && (isAdmin() || isSuper() || isClubMember(clubId) || isClubAdmin(clubId));
+        allow write: if isSignedIn() && (isAdmin() || isSuper() || isClubAdmin(clubId));
         // Allow invited user to create their own membership
         allow create: if isSignedIn() && request.auth.uid == memberId &&
           request.resource.data.inviteId is string &&
           exists(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)) &&
           get(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)).data.email == request.auth.token.email;
+      }
+
+      // ===== CLUB CATEGORIES =====
+      match /categories/{categoryId} {
+        allow read: if isSignedIn() && (isClubMember(clubId) || isClubAdmin(clubId) || isAdmin() || isSuper());
+        allow write: if isSignedIn() && (isClubAdmin(clubId) || isSuper());
       }
 
       // ===== CLUB INVITES =====
