@@ -22,12 +22,6 @@ service cloud.firestore {
         get(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'];
     }
 
-    // Helper function to check if user is admin of the club specified in document data
-    function isClubAdminOf(clubId) {
-      return isSignedIn() && clubId != null &&
-        exists(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'];
-    }
 
     // ===== USER PROFILES =====
     match /users/{userId} {
@@ -168,10 +162,7 @@ service cloud.firestore {
     // Test Results
     match /testResults/{resultId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (
-        isSuper() ||
-        isClubAdminOf(resource.data.clubId)
-      );
+      allow write: if isSignedIn() && isAdmin();
     }
 
     // Legacy collections (for backwards compatibility)

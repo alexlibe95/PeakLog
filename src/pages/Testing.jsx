@@ -52,14 +52,16 @@ const Testing = () => {
 
   const effectiveClubId = getEffectiveClubId();
 
-  // Debug logging
+  // Debug logging (can be removed later)
   console.log('🔍 Testing component debug:', {
     user: user?.uid,
     currentClubId,
     effectiveClubId,
     memberships: memberships.map(m => ({ clubId: m.clubId, role: m.role })),
     isAdmin: useAuth().isAdmin(),
-    isSuper: useAuth().isSuper()
+    isSuper: useAuth().isSuper(),
+    isAdminOfClub: useAuth().isAdmin(effectiveClubId),
+    isSuperOfClub: useAuth().isSuper()
   });
 
   // Load initial data
