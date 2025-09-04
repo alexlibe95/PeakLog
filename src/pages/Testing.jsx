@@ -52,6 +52,16 @@ const Testing = () => {
 
   const effectiveClubId = getEffectiveClubId();
 
+  // Debug logging
+  console.log('🔍 Testing component debug:', {
+    user: user?.uid,
+    currentClubId,
+    effectiveClubId,
+    memberships: memberships.map(m => ({ clubId: m.clubId, role: m.role })),
+    isAdmin: useAuth().isAdmin(),
+    isSuper: useAuth().isSuper()
+  });
+
   // Load initial data
   const loadData = useCallback(async () => {
     if (!effectiveClubId) return;
@@ -142,18 +152,18 @@ const Testing = () => {
         createdBy: user?.uid
       });
 
-      // Add results for athletes who have values
-      const resultPromises = Object.entries(athleteResults)
+      // Add results for athletes who have values - batch them all together
+      const results = Object.entries(athleteResults)
         .filter(([_, result]) => result && result.trim() !== '')
-        .map(([athleteId, result]) =>
-          testService.addTestResults(testSession.id, [{
-            athleteId,
-            value: parseFloat(result.trim()),
-            categoryId: selectedCategory
-          }], effectiveClubId)
-        );
+        .map(([athleteId, result]) => ({
+          athleteId,
+          value: parseFloat(result.trim()),
+          categoryId: selectedCategory
+        }));
 
-      await Promise.all(resultPromises);
+      if (results.length > 0) {
+        await testService.addTestResults(testSession.id, results, effectiveClubId);
+      }
 
       // Update athlete PBs and goals
       await Promise.all(

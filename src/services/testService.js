@@ -152,6 +152,8 @@ export const testService = {
    */
   async addTestResults(testId, results, clubId) {
     try {
+      console.log('🔍 addTestResults called with:', { testId, resultsCount: results.length, clubId });
+
       const batch = [];
 
       for (const result of results) {
@@ -165,13 +167,23 @@ export const testService = {
           createdAt: Timestamp.now(),
         };
 
+        console.log('📄 Creating test result document:', docData);
         batch.push(addDoc(collection(db, 'testResults'), docData));
       }
 
+      console.log('🚀 Executing batch write for test results...');
       await Promise.all(batch);
+      console.log('✅ Test results added successfully');
+
       return { success: true, count: results.length };
     } catch (error) {
-      console.error('Error adding test results:', error);
+      console.error('❌ Error adding test results:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        clubId: clubId,
+        testId: testId
+      });
       throw error;
     }
   },

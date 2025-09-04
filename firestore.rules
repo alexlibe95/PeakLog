@@ -12,16 +12,20 @@ service cloud.firestore {
     }
     function isSuper() { return userRole() == 'super'; }
     function isAdmin() {
-      return userRole() == 'admin' ||
-             isSuper() ||
-             (isSignedIn() && exists(/databases/$(database)/documents/clubs/{clubId}/members/$(request.auth.uid)) &&
-              get(/databases/$(database)/documents/clubs/{clubId}/members/$(request.auth.uid)).data.role in ['admin', 'super']);
+      return userRole() == 'admin' || isSuper();
     }
     function isClubMember(clubId) {
       return isSignedIn() && exists(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid));
     }
     function isClubAdmin(clubId) {
       return isClubMember(clubId) &&
+        get(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'];
+    }
+
+    // Helper function to check if user is admin of the club specified in document data
+    function isClubAdminOf(clubId) {
+      return isSignedIn() && clubId != null &&
+        exists(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'];
     }
 
@@ -32,7 +36,10 @@ service cloud.firestore {
         isAdmin() ||
         isSuper()
       );
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isSuper()
+      );
     }
 
     // ===== CLUBS COLLECTION =====
@@ -163,9 +170,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && (
         isSuper() ||
-        (resource.data.clubId != null &&
-         exists(/databases/$(database)/documents/clubs/$(resource.data.clubId)/members/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/clubs/$(resource.data.clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'])
+        isClubAdminOf(resource.data.clubId)
       );
     }
 
