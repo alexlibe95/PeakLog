@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast-context";
 import { clubService } from '../services/clubService';
+import { collection, query, where, getDocs, deleteDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import {
   Plus,
   Calendar,
@@ -89,7 +91,7 @@ const TrainingManagement = () => {
     { key: 'sunday', label: 'Sunday', short: 'Sun' }
   ];
 
-  const generateUpcomingDays = useCallback(() => {
+  const generateUpcomingDays = useCallback(async () => {
     // Don't generate if no club is selected
     if (!currentClubId) {
       return;
@@ -106,8 +108,6 @@ const TrainingManagement = () => {
         ...dayData,
         dayIndex: getDayIndex(dayKey)
       }));
-
-
 
     // If no days are enabled, show next 4 days as default
     if (enabledDays.length === 0) {
@@ -169,7 +169,53 @@ const TrainingManagement = () => {
       }
     }
 
-    setUpcomingDays(days);
+    // Now load existing training sessions for these days
+    try {
+      const sessionsQuery = query(
+        collection(db, 'trainingSessions'),
+        where('clubId', '==', currentClubId)
+      );
+
+      const sessionsSnap = await getDocs(sessionsQuery);
+      const existingSessions = sessionsSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate?.() || doc.data().date
+      }));
+
+      // Update days with existing sessions
+      const updatedDays = days.map(day => {
+        const daySessions = existingSessions.filter(session => {
+          const sessionDate = session.date;
+          const dayDate = new Date(day.date);
+          return sessionDate && dayDate &&
+                 sessionDate.toDateString() === dayDate.toDateString();
+        });
+
+        // Convert sessions to program format
+        const sessionPrograms = daySessions.map(session => {
+          const program = programs.find(p => p.id === session.programId);
+          if (program) {
+            return {
+              ...program,
+              assignedAt: session.createdAt?.toDate?.() || session.createdAt || new Date(),
+              sessionId: session.id
+            };
+          }
+          return null;
+        }).filter(Boolean);
+
+        return {
+          ...day,
+          programs: [...day.programs, ...sessionPrograms]
+        };
+      });
+
+      setUpcomingDays(updatedDays);
+    } catch (error) {
+      console.error('Error loading existing training sessions:', error);
+      setUpcomingDays(days); // Fallback to days without sessions
+    }
   }, [programs, weeklySchedule, currentClubId]);
 
   const getDayIndex = (dayKey) => {
@@ -391,35 +437,108 @@ const TrainingManagement = () => {
     }
   };
 
-  const assignProgramToDay = (dayId, programId) => {
-    setUpcomingDays(prev => prev.map(day => {
-      if (day.id === dayId) {
-        // Check if program is already assigned
-        if (day.programs.some(p => p.id === programId)) {
-          return day; // Don't add duplicate
-        }
-        const program = programs.find(p => p.id === programId);
-        if (program) {
+  const assignProgramToDay = async (dayId, programId) => {
+    try {
+      const day = upcomingDays.find(d => d.id === dayId);
+      if (!day) return;
+
+      // Check if program is already assigned
+      if (day.programs.some(p => p.id === programId)) {
+        return; // Don't add duplicate
+      }
+
+      const program = programs.find(p => p.id === programId);
+      if (!program) return;
+
+      // Create training session in database
+      const dayData = {
+        date: day.date,
+        dayName: day.dayName,
+        startTime: '09:00', // Default time, could be made configurable
+        endTime: '10:30'
+      };
+
+      const session = await clubService.createTrainingSessionFromSchedule(currentClubId, dayData, program);
+
+      // Update local state to reflect the change
+      setUpcomingDays(prev => prev.map(day => {
+        if (day.id === dayId) {
           return {
             ...day,
-            programs: [...day.programs, { ...program, assignedAt: new Date() }]
+            programs: [...day.programs, {
+              ...program,
+              assignedAt: new Date(),
+              sessionId: session.id // Store the session ID for future reference
+            }]
           };
         }
-      }
-      return day;
-    }));
+        return day;
+      }));
+
+      toast({
+        title: "Program Assigned",
+        description: `${program.name} has been assigned to ${day.dayName}`,
+      });
+
+    } catch (error) {
+      console.error('Error assigning program to day:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign program to training day.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const removeProgramFromDay = (dayId, programId) => {
-    setUpcomingDays(prev => prev.map(day => {
-      if (day.id === dayId) {
-        return {
-          ...day,
-          programs: day.programs.filter(p => p.id !== programId)
-        };
+  const removeProgramFromDay = async (dayId, programId) => {
+    try {
+      const day = upcomingDays.find(d => d.id === dayId);
+      if (!day) return;
+
+      const programToRemove = day.programs.find(p => p.id === programId);
+      if (!programToRemove) return;
+
+      // If there's a session ID, we need to delete the training session from database
+      if (programToRemove.sessionId) {
+        // Find and delete the training session
+        const sessionsQuery = query(
+          collection(db, 'trainingSessions'),
+          where('clubId', '==', currentClubId),
+          where('programId', '==', programId),
+          where('date', '==', Timestamp.fromDate(new Date(day.date)))
+        );
+
+        const sessionsSnap = await getDocs(sessionsQuery);
+        if (!sessionsSnap.empty) {
+          // Delete the first matching session
+          await deleteDoc(sessionsSnap.docs[0].ref);
+        }
       }
-      return day;
-    }));
+
+      // Update local state to reflect the change
+      setUpcomingDays(prev => prev.map(day => {
+        if (day.id === dayId) {
+          return {
+            ...day,
+            programs: day.programs.filter(p => p.id !== programId)
+          };
+        }
+        return day;
+      }));
+
+      toast({
+        title: "Program Removed",
+        description: `${programToRemove.name} has been removed from ${day.dayName}`,
+      });
+
+    } catch (error) {
+      console.error('Error removing program from day:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove program from training day.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
