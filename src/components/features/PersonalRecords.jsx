@@ -20,13 +20,22 @@ const PersonalRecords = () => {
 
   const loadPersonalRecords = async () => {
     if (!user || !currentClubId) return;
-    
+
     setLoading(true);
     try {
-      const [recordsData, categoriesData] = await Promise.all([
-        athletePerformanceService.getAthleteRecords(user.uid, currentClubId),
-        performanceCategoryService.getClubCategories(currentClubId)
-      ]);
+      // Query personalRecords collection directly
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+
+      const recordsQuery = query(
+        collection(db, 'personalRecords'),
+        where('athleteId', '==', user.uid)
+      );
+      const recordsSnap = await getDocs(recordsQuery);
+      const recordsData = recordsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      const categoriesData = await performanceCategoryService.getClubCategories(currentClubId);
+
       setRecords(recordsData);
       setCategories(categoriesData);
     } catch (error) {

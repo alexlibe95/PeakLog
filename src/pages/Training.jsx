@@ -101,17 +101,35 @@ const Training = () => {
     if (!currentClubId || !user) return;
 
     try {
-      const recordsQuery = query(
-        collection(db, 'athleteRecords'),
-        where('athleteId', '==', user.uid),
+      // Load categories first (same as MyProgress page)
+      const categoriesQuery = query(
+        collection(db, 'performanceCategories'),
         where('clubId', '==', currentClubId),
         where('isActive', '==', true)
       );
+      const categoriesSnap = await getDocs(categoriesQuery);
+      const categoriesData = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Load personal records
+      const recordsQuery = query(
+        collection(db, 'personalRecords'),
+        where('athleteId', '==', user.uid)
+      );
       const recordsSnap = await getDocs(recordsQuery);
       const records = recordsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
+
+      // Enrich records with category information (same as MyProgress page)
+      const enrichedRecords = records.map(record => {
+        const category = categoriesData.find(c => c.id === record.categoryId);
+        return {
+          ...record,
+          unit: category?.unit || '',
+          categoryName: category?.name || 'Unknown Category'
+        };
+      });
+
       // Sort by date descending
-      setPersonalRecords(records.sort((a, b) => new Date(b.date) - new Date(a.date)));
+      setPersonalRecords(enrichedRecords.sort((a, b) => new Date(b.date) - new Date(a.date)));
     } catch (error) {
       console.error('Error loading personal records:', error);
     }
@@ -176,9 +194,8 @@ const Training = () => {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  const getCategoryName = (categoryId) => {
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name || 'Unknown Category';
+  const getCategoryName = (record) => {
+    return record.categoryName || 'Unknown Category';
   };
 
   const getGoalStatus = (goal) => {
@@ -342,7 +359,7 @@ const Training = () => {
                     {personalRecords.slice(0, 5).map((record) => (
                       <div key={record.id} className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <div className="flex-1">
-                          <h4 className="font-medium text-sm">{getCategoryName(record.categoryId)}</h4>
+                          <h4 className="font-medium text-sm">{getCategoryName(record)}</h4>
                           <p className="text-xs text-muted-foreground">{formatDate(record.date)}</p>
                         </div>
                         <div className="text-right">
