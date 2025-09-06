@@ -32,7 +32,10 @@ service cloud.firestore {
       );
       allow write: if isSignedIn() && (
         request.auth.uid == userId ||
-        isSuper()
+        isSuper() ||
+        // Allow club admins to update memberships for member management
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberships']) &&
+         isAdmin())
       );
     }
 

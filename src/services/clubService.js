@@ -219,11 +219,7 @@ export const clubService = {
     // Remove admin role from user in this club
     const batch = writeBatch(db);
 
-    // Remove membership
-    const memberRef = doc(db, 'clubs', clubId, 'members', uid);
-    batch.delete(memberRef);
-
-    // Update user profile to remove this membership
+    // First update user profile to remove this membership (while permissions still work)
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
@@ -234,6 +230,10 @@ export const clubService = {
         updatedAt: new Date().toISOString()
       });
     }
+
+    // Then remove membership document
+    const memberRef = doc(db, 'clubs', clubId, 'members', uid);
+    batch.delete(memberRef);
 
     await batch.commit();
   },
@@ -242,11 +242,7 @@ export const clubService = {
     // Remove athlete role from user in this club
     const batch = writeBatch(db);
 
-    // Remove membership
-    const memberRef = doc(db, 'clubs', clubId, 'members', uid);
-    batch.delete(memberRef);
-
-    // Update user profile to remove this membership
+    // First update user profile to remove this membership (while permissions still work)
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
@@ -257,6 +253,10 @@ export const clubService = {
         updatedAt: new Date().toISOString()
       });
     }
+
+    // Then remove membership document
+    const memberRef = doc(db, 'clubs', clubId, 'members', uid);
+    batch.delete(memberRef);
 
     await batch.commit();
   },
