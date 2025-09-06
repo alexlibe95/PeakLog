@@ -77,7 +77,8 @@ service cloud.firestore {
 
       // ===== CLUB SETTINGS =====
       match /settings/{settingId} {
-        allow read, write: if isClubAdmin(clubId) || isSuper();
+        allow read: if isClubMember(clubId) || isSuper();
+        allow write: if isClubAdmin(clubId) || isSuper();
       }
 
       // ===== TRAINING PROGRAMS =====
@@ -105,7 +106,13 @@ service cloud.firestore {
 
       // ===== PENDING ASSIGNMENTS =====
       match /pendingAssignments/{assignmentId} {
-        allow read, write: if isClubAdmin(clubId) || isSuper();
+        // Allow users to read their own pending assignments (by email)
+        allow read: if isSignedIn() && (
+          isClubAdmin(clubId) ||
+          isSuper() ||
+          request.auth.token.email.replace('.', '_') == assignmentId
+        );
+        allow write: if isClubAdmin(clubId) || isSuper();
       }
     }
 
@@ -113,7 +120,8 @@ service cloud.firestore {
 
     // Training Programs
     match /trainingPrograms/{programId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // Training Sessions
@@ -133,6 +141,14 @@ service cloud.firestore {
     match /performanceCategories/{categoryId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    // ===== CLUB-SPECIFIC COLLECTIONS =====
+
+    // Club Performance Categories
+    match /clubs/{clubId}/categories/{categoryId} {
+      allow read: if isClubMember(clubId) || isSuper();
+      allow write: if isClubAdmin(clubId) || isSuper();
     }
 
     // Athlete Records

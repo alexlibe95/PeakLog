@@ -462,81 +462,160 @@ export const clubService = {
       // Get the weekly schedule
       const weeklySchedule = await this.getWeeklySchedule(clubId);
 
-      if (!weeklySchedule || !weeklySchedule.schedule) {
-        return [];
-      }
-
       const days = [];
       const today = new Date();
 
-      // Get enabled days from weekly schedule
-      const enabledDays = Object.entries(weeklySchedule.schedule)
-        .filter(([, dayData]) => dayData.enabled)
-        .map(([dayKey, dayData]) => ({
-          dayKey,
-          ...dayData,
-          dayIndex: this._getDayIndex(dayKey)
-        }));
+      // Get enabled days from weekly schedule (if it exists)
+      let enabledDays = [];
+      if (weeklySchedule && weeklySchedule.schedule) {
+        enabledDays = Object.entries(weeklySchedule.schedule)
+          .filter(([, dayData]) => dayData.enabled)
+          .map(([dayKey, dayData]) => ({
+            dayKey,
+            ...dayData,
+            dayIndex: this._getDayIndex(dayKey)
+          }));
+      }
 
-      // If no days are enabled, return empty array
-      if (enabledDays.length === 0) {
-        // console.log removed('⚠️ No enabled days in weekly schedule');
+      // Always get existing training sessions (both from schedule and manually assigned)
+      let existingSessions = [];
+      try {
+        const sessionsQuery = query(
+          collection(db, 'trainingSessions'),
+          where('clubId', '==', clubId),
+          orderBy('date', 'asc')
+        );
+        const sessionsSnap = await getDocs(sessionsQuery);
+        existingSessions = sessionsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate?.() || doc.data().date,
+          fromSchedule: doc.data().isFromSchedule || false
+        }));
+      } catch (error) {
+        console.error('Error fetching existing training sessions:', error);
+      }
+
+      // If no enabled days in schedule and no existing sessions, return empty
+      if (enabledDays.length === 0 && existingSessions.length === 0) {
         return [];
       }
 
-      // Generate next occurrences of enabled days
-      let daysFound = 0;
+      // Generate next occurrences of enabled days (from weekly schedule)
+      let scheduleDaysFound = 0;
       let currentDate = new Date(today);
 
-      while (daysFound < limitCount) {
+      // First, collect all days from existing sessions
+      const sessionDays = new Map();
+
+      existingSessions.forEach(session => {
+        if (session.date >= today) {
+          const dateKey = session.date.toISOString().split('T')[0];
+          if (!sessionDays.has(dateKey)) {
+            sessionDays.set(dateKey, {
+              date: session.date,
+              sessions: []
+            });
+          }
+          sessionDays.get(dateKey).sessions.push(session);
+        }
+      });
+
+      // Generate schedule-based days
+      while (scheduleDaysFound < limitCount && enabledDays.length > 0) {
         const currentDayIndex = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
         // Check if current day matches any enabled day
         const matchingDay = enabledDays.find(day => day.dayIndex === currentDayIndex);
 
         if (matchingDay) {
+          const dateKey = currentDate.toISOString().split('T')[0];
+
+          // Check if we already have sessions for this date
+          const existingDaySessions = sessionDays.get(dateKey)?.sessions || [];
+
           // Get the program for this day if assigned
           let program = null;
           if (matchingDay.programId && matchingDay.programId !== 'none') {
             try {
-              // console.log removed('🔍 Looking for program with ID:', matchingDay.programId);
               const programs = await this.getTrainingPrograms(clubId);
-              // console.log removed('📚 Available programs:', programs.length, 'found');
               program = programs.find(p => p.id === matchingDay.programId);
-              if (program) {
-                // console.log removed('✅ Program found:', program.name);
-              } else {
-                // console.log removed('❌ Program not found with ID:', matchingDay.programId);
-                // console.log removed('Available program IDs:', programs.map(p => p.id));
-              }
             } catch (error) {
               console.error('❌ Error fetching program for day:', error);
             }
           }
 
-          days.push({
-            id: currentDate.toISOString().split('T')[0],
+          // Create day object
+          const dayObj = {
+            id: dateKey,
             date: new Date(currentDate),
             dayName: currentDate.toLocaleDateString('en-US', { weekday: 'long' }),
             dateString: currentDate.toLocaleDateString('en-US', {
               month: 'short',
-              day: 'numeric',
-              year: '2-digit'
+              day: 'numeric'
             }),
             startTime: matchingDay.startTime,
             endTime: matchingDay.endTime,
             program: program,
-            programId: matchingDay.programId
-          });
-          daysFound++;
+            programId: matchingDay.programId,
+            sessions: existingDaySessions
+          };
+
+          days.push(dayObj);
+          scheduleDaysFound++;
         }
 
         // Move to next day
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
+      // Add days with only manually assigned sessions (not from weekly schedule)
+      for (const [dateKey, dayInfo] of sessionDays) {
+        // Check if we already added this day from the schedule
+        const existingDay = days.find(d => d.id === dateKey);
 
-      return days;
+        if (!existingDay && dayInfo.sessions.length > 0) {
+          const sessionDate = dayInfo.sessions[0].date;
+          const dayObj = {
+            id: dateKey,
+            date: sessionDate,
+            dayName: sessionDate.toLocaleDateString('en-US', { weekday: 'long' }),
+            dateString: sessionDate.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric'
+            }),
+            startTime: '09:00', // Default times for manually assigned sessions
+            endTime: '10:30',
+            program: null, // Will be set from session data
+            programId: null,
+            sessions: dayInfo.sessions
+          };
+
+          // If there's a session with program info, use it
+          const sessionWithProgram = dayInfo.sessions.find(s => s.programId);
+          if (sessionWithProgram) {
+            try {
+              const programs = await this.getTrainingPrograms(clubId);
+              const program = programs.find(p => p.id === sessionWithProgram.programId);
+              if (program) {
+                dayObj.program = program;
+                dayObj.programId = program.id;
+                dayObj.startTime = sessionWithProgram.startTime || dayObj.startTime;
+                dayObj.endTime = sessionWithProgram.endTime || dayObj.endTime;
+              }
+            } catch (error) {
+              console.error('Error fetching program for session:', error);
+            }
+          }
+
+          days.push(dayObj);
+        }
+      }
+
+      // Sort days by date and limit
+      days.sort((a, b) => a.date - b.date);
+      return days.slice(0, limitCount);
+
     } catch (error) {
       console.error('❌ Error fetching upcoming training days:', error);
       throw error;
