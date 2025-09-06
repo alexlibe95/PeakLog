@@ -5,7 +5,7 @@
   <br><br>
 </div>
 
-A comprehensive training management and performance tracking platform designed for sports teams and coaches. Built for endurance sports like canoe/kayak, rowing, swimming, and running, with advanced features for athlete management, training scheduling, performance testing, and progress tracking.
+A comprehensive training management and performance tracking platform designed for sports teams and coaches. Built for endurance sports like canoe/kayak, rowing, swimming, and running, with advanced features for athlete management, training scheduling, performance testing, and progress tracking!
 
 🌐 **Live Demo**: [https://peaklog-a10b4.web.app](https://peaklog-a10b4.web.app)
 
