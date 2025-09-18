@@ -48,6 +48,7 @@ const Dashboard = () => {
   const [nextTrainingSession, setNextTrainingSession] = useState(null);
   const [upcomingTrainingDays, setUpcomingTrainingDays] = useState([]);
   const [currentTrainingSession, setCurrentTrainingSession] = useState(null);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [sessionAttendance, setSessionAttendance] = useState([]);
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   const [clubMessage, setClubMessage] = useState(null);
@@ -334,6 +335,15 @@ const Dashboard = () => {
       }
     }
   }, [currentRole, currentClubId, memberships, isSuperUser, selectedDashboardRole, selectedDashboardClubId, availableRoles, availableClubs]);
+
+  // Set initial load as complete after 5 seconds to allow time for pending assignment processing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoadComplete(true);
+    }, 5000); // 5 seconds should be enough for assignment processing
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Refresh training status periodically
   useEffect(() => {
@@ -847,7 +857,26 @@ const Dashboard = () => {
         )}
 
         {/* Pending membership notice */}
-        {(memberships || []).length === 0 && dashboardRole !== 'super' && (
+        {/* Show loading state during initial load */}
+        {(memberships || []).length === 0 && dashboardRole !== 'super' && !initialLoadComplete && (
+          <div className="mb-6 p-6 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900">Setting up your account...</h3>
+                <p className="text-blue-700">Checking for club invitations</p>
+              </div>
+            </div>
+            <div className="text-sm text-blue-800">
+              We're processing your club invitations. This should only take a moment.
+            </div>
+          </div>
+        )}
+
+        {/* Show "not in any club" message only after initial load is complete */}
+        {(memberships || []).length === 0 && dashboardRole !== 'super' && initialLoadComplete && (
           <div className="mb-6 p-6 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-blue-100 rounded-full">
