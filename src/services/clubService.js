@@ -903,6 +903,18 @@ export const clubService = {
     }
   },
 
+  async removeAttendanceRecord(sessionId, athleteId) {
+    try {
+      const attendanceRef = doc(db, 'trainingSessions', sessionId, 'attendance', athleteId);
+      await deleteDoc(attendanceRef);
+      // console.log('✅ Attendance record removed for athlete:', athleteId);
+      return true;
+    } catch (error) {
+      console.error('❌ Error removing attendance record:', error);
+      throw error;
+    }
+  },
+
   async getAthleteAttendance(athleteId, clubId, limitCount = 30) {
     try {
       // Get all sessions for the club (simplified to avoid index requirements)
