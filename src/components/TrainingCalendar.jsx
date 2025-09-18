@@ -11,6 +11,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -18,9 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { clubService } from '@/services/clubService';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/toast-context';
@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 
 const TrainingCalendar = ({ clubId, clubName }) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -53,6 +53,8 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   });
   const [clubMembers, setClubMembers] = useState([]);
   const [sessionAttendance, setSessionAttendance] = useState([]);
+  const [attendanceSummary, setAttendanceSummary] = useState({ present: 0, total: 0 });
+  const [loadingAthletes, setLoadingAthletes] = useState(false);
 
   useEffect(() => {
     if (clubId) {
@@ -92,20 +94,33 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   const loadSessionAttendance = async (sessionId) => {
     try {
       const attendance = await clubService.getSessionAttendance(sessionId);
+
+      // Load club members to ensure we have all athletes for attendance marking
+      if (clubMembers.length === 0) {
+        await loadClubMembers();
+      }
+
+      // Create attendance records for all club members, merging with existing attendance
       const attendanceMap = {};
       attendance.forEach(record => {
         attendanceMap[record.athleteId] = record;
       });
 
-      // Initialize attendance for all club members
       const sessionAttendanceData = clubMembers.map(member => ({
         athleteId: member.id,
         athleteName: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email,
-        status: attendanceMap[member.id]?.status || 'absent',
-        notes: attendanceMap[member.id]?.notes || ''
+        status: attendanceMap[member.id]?.status || '',
+        email: member.email
       }));
 
       setSessionAttendance(sessionAttendanceData);
+
+      // Calculate attendance summary
+      const presentCount = sessionAttendanceData.filter(record => record.status === 'present').length;
+      setAttendanceSummary({
+        present: presentCount,
+        total: sessionAttendanceData.length
+      });
     } catch (error) {
       console.error('Error loading session attendance:', error);
       toast({
@@ -175,53 +190,67 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   };
 
   const handleAttendanceUpdate = async () => {
-    if (!selectedSession) return;
+    if (!selectedSession || sessionAttendance.length === 0) {
+      toast({
+        title: "No attendance to update",
+        description: "No attendance records have been marked.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      const attendanceUpdates = sessionAttendance.map(({ athleteId, status, notes }) => ({
-        athleteId,
-        status,
-        notes
-      }));
+      await clubService.bulkMarkAttendance(
+        selectedSession.id,
+        sessionAttendance.map(attendance => ({
+          athleteId: attendance.athleteId,
+          status: attendance.status,
+          notes: ''
+        })),
+        user.uid
+      );
 
-      await clubService.updateSessionAttendance(selectedSession.id, attendanceUpdates, user.uid);
-      
       toast({
-        title: 'Attendance updated',
-        description: 'Session attendance has been updated successfully'
+        title: "Attendance Updated",
+        description: `Updated attendance for ${sessionAttendance.length} athlete(s)`,
       });
 
       setShowAttendanceDialog(false);
       setSelectedSession(null);
+      setSelectedDate(null);
+      setSessionAttendance([]);
       loadCalendarData();
     } catch (error) {
       console.error('Error updating attendance:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to update attendance',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to update attendance. Please try again.",
+        variant: "destructive",
       });
     }
   };
 
   const updateAttendanceStatus = (athleteId, status) => {
-    setSessionAttendance(prev => 
-      prev.map(record => 
-        record.athleteId === athleteId 
-          ? { ...record, status }
-          : record
-      )
-    );
-  };
+    setSessionAttendance(prev => {
+      const newAttendance = [...prev];
+      const existingIndex = newAttendance.findIndex(a => a.athleteId === athleteId);
 
-  const updateAttendanceNotes = (athleteId, notes) => {
-    setSessionAttendance(prev => 
-      prev.map(record => 
-        record.athleteId === athleteId 
-          ? { ...record, notes }
-          : record
-      )
-    );
+      if (existingIndex >= 0) {
+        newAttendance[existingIndex] = {
+          ...newAttendance[existingIndex],
+          status,
+          markedAt: new Date()
+        };
+      } else {
+        newAttendance.push({
+          athleteId: athleteId,
+          status,
+          markedAt: new Date(),
+          markedBy: user.uid
+        });
+      }
+      return newAttendance;
+    });
   };
 
   const navigateMonth = (direction) => {
@@ -418,30 +447,40 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                             ) : (
                               <div className="space-y-1">
                                 <Badge
-                                  variant="default"
-                                  className="text-xs px-1 py-0.5 block w-full text-xs"
+                                  variant={day.date <= new Date() ? "secondary" : "default"}
+                                  className={`text-xs px-1 py-0.5 block w-full text-xs ${
+                                    day.date <= new Date() ? "bg-green-100 text-green-800 border-green-200" : ""
+                                  }`}
                                 >
                                   <Clock className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
                                   <span className="hidden sm:inline">{day.dayData.scheduleInfo?.startTime}</span>
                                   <span className="sm:hidden">{day.dayData.scheduleInfo?.startTime?.split(':')[0]}h</span>
+                                  {day.date <= new Date() && (
+                                    <span className="ml-1 text-xs opacity-75">(Past)</span>
+                                  )}
                                 </Badge>
-                                {day.date <= new Date() && (
+                                {day.date <= new Date() && isAdmin && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-5 sm:h-6 w-full text-xs p-0.5 sm:p-1"
+                                    className="h-5 sm:h-6 w-full text-xs p-0.5 sm:p-1 bg-blue-50 hover:bg-blue-100"
+                                    title={`Edit attendance for ${formatDate(day.date)} (Past Session)`}
                                     onClick={() => {
                                       setSelectedDate(day.date);
                                       setSelectedSession(day.dayData.session);
+                                      setLoadingAthletes(true);
+
                                       if (day.dayData.session) {
                                         loadSessionAttendance(day.dayData.session.id);
                                         setShowAttendanceDialog(true);
                                       }
+
+                                      setLoadingAthletes(false);
                                     }}
                                   >
-                                    <Users className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
-                                    <span className="hidden sm:inline">Attendance</span>
-                                    <span className="sm:hidden">Att.</span>
+                                    <Users className="h-2 w-2 sm:h-3 sm:w-3 mr-1 text-blue-600" />
+                                    <span className="hidden sm:inline">Edit Attendance</span>
+                                    <span className="sm:hidden">Edit Att.</span>
                                   </Button>
                                 )}
                                 {day.date > new Date() && (
@@ -548,54 +587,129 @@ const TrainingCalendar = ({ clubId, clubName }) => {
 
       {/* Attendance Dialog */}
       <Dialog open={showAttendanceDialog} onOpenChange={setShowAttendanceDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Attendance</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              Edit Attendance
+            </DialogTitle>
             <DialogDescription>
-              Update attendance for {selectedDate && formatDate(selectedDate)}
+              {selectedSession && (
+                <span className="truncate">
+                  {selectedSession.programName || 'Training Session'} - {selectedDate && formatDate(selectedDate)}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4">
-            {sessionAttendance.map((record) => (
-              <div key={record.athleteId} className="flex items-center gap-4 p-3 border rounded">
-                <div className="flex-1">
-                  <p className="font-medium">{record.athleteName}</p>
-                </div>
-                
-                <div className="flex gap-2">
-                  {['present', 'absent', 'late', 'excused'].map((status) => (
-                    <Button
-                      key={status}
-                      variant={record.status === status ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => updateAttendanceStatus(record.athleteId, status)}
-                    >
-                      {getStatusBadge(status)}
-                    </Button>
-                  ))}
-                </div>
-                
-                <Input
-                  placeholder="Notes..."
-                  value={record.notes}
-                  onChange={(e) => updateAttendanceNotes(record.athleteId, e.target.value)}
-                  className="w-48"
-                />
-              </div>
-            ))}
-          </div>
 
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowAttendanceDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleAttendanceUpdate}>
-              Update Attendance
-            </Button>
+          {selectedSession && (
+            <div className="space-y-4">
+              {/* Session Info */}
+              <div className="p-3 sm:p-4 bg-primary/5 rounded-lg border">
+                <h4 className="font-semibold mb-2 truncate">{selectedSession.programName || 'Training Session'}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Date:</span>
+                    <div className="font-medium">
+                      {selectedDate ? formatDate(selectedDate) : 'Unknown'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Time:</span>
+                    <div className="font-medium">
+                      {selectedSession.startTime || 'Not specified'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>
+                    <div className="font-medium text-green-600">
+                      Past Session
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Athlete Attendance List */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Club Athletes ({sessionAttendance.length})</h4>
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {loadingAthletes ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <div className="text-4xl mb-2">⏳</div>
+                      <p>Loading athletes...</p>
+                    </div>
+                  ) : sessionAttendance.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <div className="text-4xl mb-2">👥</div>
+                      <p>No athletes found for this session</p>
+                      <p className="text-sm">Club members may not have been loaded</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sessionAttendance.map((record) => (
+                        <div key={record.athleteId} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-3">
+                          <div className="flex items-center space-x-3 min-w-0 flex-1">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-sm font-medium">
+                                {(record.athleteName || 'A')[0].toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">
+                                {record.athleteName || 'Unknown Athlete'}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {record.email || ''}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Select
+                              value={record.status}
+                              onValueChange={(status) => updateAttendanceStatus(record.athleteId, status)}
+                            >
+                              <SelectTrigger className={`w-full sm:w-32 min-w-[120px] ${record.status ? 'border-green-500 bg-green-50' : ''}`}>
+                                <SelectValue placeholder="Mark attendance" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="present">✅ Present</SelectItem>
+                                <SelectItem value="late">⏰ Late</SelectItem>
+                                <SelectItem value="absent">❌ Absent</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {record.status && (
+                              <div className="text-xs text-green-600 font-medium whitespace-nowrap">
+                                ✓ Saved
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-3">
+            <div className="flex items-center text-sm text-muted-foreground order-2 sm:order-1">
+              {sessionAttendance.length > 0 && (
+                <span>{sessionAttendance.filter(record => record.status && record.status !== '').length} athlete(s) marked</span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2">
+              <Button variant="outline" onClick={() => setShowAttendanceDialog(false)} className="w-full sm:w-auto">
+                Close
+              </Button>
+              <Button
+                onClick={handleAttendanceUpdate}
+                disabled={sessionAttendance.length === 0}
+                className="w-full sm:w-auto"
+              >
+                Update All Attendance
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
