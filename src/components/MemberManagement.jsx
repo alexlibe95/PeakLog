@@ -44,6 +44,8 @@ function MemberManagement({
   const { toast } = useToast();
 
   const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [saving, setSaving] = useState(false);
   const [inviteRole, setInviteRole] = useState('athlete');
   const [members, setMembers] = useState([]);
@@ -117,12 +119,20 @@ function MemberManagement({
 
     setSaving(true);
     try {
+      const memberData = {
+        email: email.trim(),
+        ...(firstName.trim() && { firstName: firstName.trim() }),
+        ...(lastName.trim() && { lastName: lastName.trim() })
+      };
+
       if (inviteRole === 'admin') {
-        await clubService.assignAdminByEmail(clubId, email.trim());
+        await clubService.assignAdminByEmail(clubId, memberData);
       } else {
-        await clubService.assignAthleteByEmail(clubId, email.trim());
+        await clubService.assignAthleteByEmail(clubId, memberData);
       }
       setEmail('');
+      setFirstName('');
+      setLastName('');
       setInviteRole('athlete');
 
       // Reload data
@@ -237,32 +247,51 @@ function MemberManagement({
                 <span className="truncate">{clubName || 'Selected Club'}</span>
               </Badge>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                placeholder="member@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1"
-              />
-              <div className="flex gap-2">
-                <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger className="w-full sm:w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="athlete">Athlete</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleAddMember} disabled={saving || !clubId} className="whitespace-nowrap">
-                  <span className="sm:hidden">Add</span>
-                  <span className="hidden sm:inline">Add Member</span>
-                </Button>
+            <div className="space-y-3">
+              {/* Optional Name Fields - Now on top */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input
+                  placeholder="First Name (optional)"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="text-sm"
+                />
+                <Input
+                  placeholder="Last Name (optional)"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Email, Role, and Button Row - Now below */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  placeholder="member@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="flex-1"
+                  required
+                />
+                <div className="flex gap-2">
+                  <Select value={inviteRole} onValueChange={setInviteRole}>
+                    <SelectTrigger className="w-full sm:w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="athlete">Athlete</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleAddMember} disabled={saving || !clubId} className="whitespace-nowrap">
+                    <span className="sm:hidden">Add</span>
+                    <span className="hidden sm:inline">Add Member</span>
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="text-xs text-muted-foreground mt-2">
               💡 <strong>Tip:</strong> You can add people who haven't registered yet.
-              They'll automatically get access when they create their account!
             </div>
           </div>
 

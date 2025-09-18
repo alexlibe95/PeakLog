@@ -134,7 +134,12 @@ export const clubService = {
     return memberships;
   },
 
-  async assignAdminByEmail(clubId, email) {
+  async assignAdminByEmail(clubId, memberData) {
+    // Handle both string (email) and object formats for backward compatibility
+    const email = typeof memberData === 'string' ? memberData : memberData.email;
+    const firstName = typeof memberData === 'object' && memberData.firstName ? memberData.firstName : '';
+    const lastName = typeof memberData === 'object' && memberData.lastName ? memberData.lastName : '';
+
     // Check if user exists in the system
     const usersRef = collection(db, 'users');
     const userQuery = query(usersRef, where('email', '==', email));
@@ -146,12 +151,14 @@ export const clubService = {
       const userId = userDoc.id;
       return await this.assignAdminByUserId(clubId, userId);
     } else {
-      // User doesn't exist, just store the email for future assignment
+      // User doesn't exist, store the email and optional name for future assignment
       // When user registers, AuthContext will check for pending assignments
       const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', email.replace('.', '_'));
       await setDoc(assignmentRef, {
         email,
         role: 'admin',
+        firstName,
+        lastName,
         assignedAt: new Date().toISOString(),
         status: 'pending'
       });
@@ -327,7 +334,12 @@ export const clubService = {
     return token;
   },
 
-  async assignAthleteByEmail(clubId, email) {
+  async assignAthleteByEmail(clubId, memberData) {
+    // Handle both string (email) and object formats for backward compatibility
+    const email = typeof memberData === 'string' ? memberData : memberData.email;
+    const firstName = typeof memberData === 'object' && memberData.firstName ? memberData.firstName : '';
+    const lastName = typeof memberData === 'object' && memberData.lastName ? memberData.lastName : '';
+
     // Check if user exists in the system
     const usersRef = collection(db, 'users');
     const userQuery = query(usersRef, where('email', '==', email));
@@ -339,11 +351,13 @@ export const clubService = {
       const userId = userDoc.id;
       return await this.assignAthleteByUserId(clubId, userId);
     } else {
-      // User doesn't exist, store the email for future assignment
+      // User doesn't exist, store the email and optional name for future assignment
       const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', email.replace('.', '_'));
       await setDoc(assignmentRef, {
         email,
         role: 'athlete',
+        firstName,
+        lastName,
         assignedAt: new Date().toISOString(),
         status: 'pending'
       });

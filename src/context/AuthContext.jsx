@@ -108,6 +108,8 @@ export const AuthProvider = ({ children }) => {
                 if (assignmentSnap.exists()) {
                   const assignmentData = assignmentSnap.data();
                   const role = assignmentData.role || 'athlete';
+                  const firstName = assignmentData.firstName || '';
+                  const lastName = assignmentData.lastName || '';
 
                   // Add user to club membership
                   await setDoc(doc(db, 'clubs', clubId, 'members', firebaseUser.uid), {
@@ -118,16 +120,22 @@ export const AuthProvider = ({ children }) => {
                     updatedAt: new Date().toISOString(),
                   }, { merge: true });
 
-                  // Update user profile with new membership
-                  await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                  // Update user profile with new membership and optional name data
+                  const updateData = {
                     memberships: arrayUnion({
                       clubId,
                       role,
                       joinedAt: new Date().toISOString()
                     }),
                     role: profile.role === 'pending' ? role : profile.role,
-                    updatedAt: new Date().toISOString(),
-                  });
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  // Add name fields if provided
+                  if (firstName) updateData.firstName = firstName;
+                  if (lastName) updateData.lastName = lastName;
+
+                  await updateDoc(doc(db, 'users', firebaseUser.uid), updateData);
 
                   // Mark assignment as completed and remove it
                   await deleteDoc(assignmentRef);
