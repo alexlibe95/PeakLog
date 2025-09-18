@@ -1328,7 +1328,7 @@ export const clubService = {
   async cancelInvitation(clubId, email) {
     try {
       // pendingAssignments uses email with dots replaced by underscores as doc ID
-      const docId = email.replace(/\./g, '_');
+      const docId = email.replace('.', '_');
       const pendingRef = doc(db, 'clubs', clubId, 'pendingAssignments', docId);
       await deleteDoc(pendingRef);
       // console.log removed('✅ Invitation cancelled for:', email);

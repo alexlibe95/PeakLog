@@ -24,7 +24,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(email, password, { role: 'pending' });
+      await register(email, password, { role: 'athlete' });
       navigate('/dashboard');
     } catch (e) {
       console.error('Register failed', e);

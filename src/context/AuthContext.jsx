@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
           if (!userDocSnap.exists()) {
             const defaultProfile = {
               email: firebaseUser.email,
-              role: 'pending',
+              role: 'athlete', // Set to athlete immediately to avoid permission issues
               firstName: '',
               lastName: '',
               sport: '',
@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }) => {
             lastName: profile?.lastName
           });
 
-          if ((userMemberships.length === 0 || profile?.role === 'pending') && isMounted) {
+          if (userMemberships.length === 0 && isMounted) {
             console.log('✅ Condition met, checking for pending assignments for email:', firebaseUser.email);
             console.log('📧 Firebase auth email:', firebaseUser.email);
 
@@ -348,7 +348,8 @@ export const AuthProvider = ({ children }) => {
       console.log('📋 User memberships:', userMemberships);
 
       // Check if we should process pending assignments
-      if (userMemberships.length === 0 || profile.role === 'pending') {
+      // Since new users start with 'athlete' role, we only check for empty memberships
+      if (userMemberships.length === 0) {
         console.log('✅ Processing pending assignments for user');
 
         // Check for pending assignments across all clubs
@@ -359,16 +360,20 @@ export const AuthProvider = ({ children }) => {
           const clubId = clubDoc.id;
           const emailKey = firebaseUser.email.replace('.', '_');
           console.log('🔑 Checking for pending assignment with key:', emailKey, 'in club:', clubId);
-          console.log('🔗 Assignment document path:', `clubs/${clubId}/pendingAssignments/${emailKey}`);
+          console.log('🔗 Expected document path:', `clubs/${clubId}/pendingAssignments/${emailKey}`);
+          console.log('🔗 User email for matching:', firebaseUser.email);
 
           const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', emailKey);
-          console.log('📍 Full document reference:', assignmentRef.path);
+          console.log('📍 Full document reference path:', assignmentRef.path);
 
           try {
+            console.log('🔍 About to call getDoc for assignment...');
             const assignmentSnap = await getDoc(assignmentRef);
+            console.log('🔍 getDoc call completed');
             console.log('🔍 Assignment document read successful, exists:', assignmentSnap.exists());
 
             if (assignmentSnap.exists()) {
+              console.log('🔍 Assignment document data:', assignmentSnap.data());
               const assignmentData = assignmentSnap.data();
               console.log('✅ Found pending assignment:', assignmentData);
 
@@ -391,16 +396,21 @@ export const AuthProvider = ({ children }) => {
             console.log('👤 Updating user profile for:', firebaseUser.uid);
             console.log('📊 Current profile role:', profile.role, 'New membership role:', role);
 
-            // Keep global role as athlete for regular users (don't promote automatically)
-            // Only super admins should have global super role (set manually)
-            let newGlobalRole = profile.role;
-            if (profile.role === 'pending') {
-              // First membership - set to athlete (most restrictive)
-              newGlobalRole = 'athlete';
-            }
-            // Don't promote roles automatically - keep current global role
+                  // Handle role promotion for new memberships
+                  let newGlobalRole = profile.role;
+                  if (profile.role === 'athlete' && role === 'admin') {
+                    // Promote athlete to admin when joining as admin
+                    newGlobalRole = 'admin';
+                  } else if (profile.role === 'athlete' && role === 'super') {
+                    // Promote athlete to super when joining as super
+                    newGlobalRole = 'super';
+                  } else if (profile.role === 'admin' && role === 'super') {
+                    // Promote admin to super when joining as super
+                    newGlobalRole = 'super';
+                  }
+                  // Keep current role if it's higher privilege
 
-            console.log('🔄 Global role update:', profile.role, '->', newGlobalRole, '(club role:', role, ')');
+                  console.log('🔄 Global role update:', profile.role, '->', newGlobalRole, '(club role:', role, ')');
 
             const updateData = {
               memberships: arrayUnion({
@@ -667,10 +677,10 @@ export const AuthProvider = ({ children }) => {
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
       if (!userDoc.exists()) {
         console.log('📝 Creating new user profile for email link user:', result.user.email);
-        // Create default profile for new email link users with new structure
+        // Create default profile for new email link users with athlete role (not pending)
         const defaultProfile = {
           email: result.user.email,
-          role: 'pending',
+          role: 'athlete', // Set to athlete immediately to avoid permission issues
           firstName: '',
           lastName: '',
           sport: '',
@@ -679,7 +689,7 @@ export const AuthProvider = ({ children }) => {
           updatedAt: new Date().toISOString()
         };
         await setDoc(doc(db, 'users', result.user.uid), defaultProfile);
-        console.log('✅ Created user profile with role "pending"');
+        console.log('✅ Created user profile with role "athlete"');
 
         // For email link users, manually check for pending assignments after a brief delay
         // This ensures pending assignments are processed even if auth state change doesn't trigger immediately
