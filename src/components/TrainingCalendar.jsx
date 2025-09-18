@@ -574,6 +574,17 @@ const TrainingCalendar = ({ clubId, clubName }) => {
     });
   };
 
+  const formatTime = (timeString) => {
+    if (!timeString) return '';
+
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    const displayHour = hour % 12 || 12;
+
+    return `${displayHour}:${minutes}${ampm}`;
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       present: { variant: 'default', icon: '✅', label: 'Present' },
@@ -689,53 +700,31 @@ const TrainingCalendar = ({ clubId, clubName }) => {
               {calendarGrid.map((week, weekIdx) =>
                 week.map((day, dayIdx) => {
                   // Determine color coding based on training status
-                  let dayColorClass = '';
-                  let textColorClass = '';
+                  let dayColorClass = 'bg-white';
+                  let textColorClass = 'text-gray-900';
 
                   if (day.dayData?.isScheduled) {
                     if (day.dayData.isCancelled) {
-                      dayColorClass = 'bg-red-100 border-red-300';
+                      dayColorClass = 'bg-red-100';
                       textColorClass = 'text-red-800';
                     } else if (day.date <= new Date()) {
-                      // For past days, check attendance status
-                                      if (day.dayData.session) {
-                        const attendanceCount = day.dayData.session.attendanceCount || 0;
-                        const totalRecords = day.dayData.session.totalRecords || 0;
-                        const hasValidAttendance = day.dayData.session.hasValidAttendance;
-
-                        if (hasValidAttendance && attendanceCount > 0) {
-                          // Has valid attendance records - show as completed
-                          dayColorClass = 'bg-green-100 border-green-300';
-                          textColorClass = 'text-green-800';
-                        } else if (totalRecords > 0 && attendanceCount === 0) {
-                          // Has records but all are orphaned - show as problematic
-                          dayColorClass = 'bg-orange-100 border-orange-300';
-                          textColorClass = 'text-orange-800';
-                        } else if (totalRecords === 0) {
-                          // No attendance records yet - show as scheduled but incomplete
-                          dayColorClass = 'bg-yellow-100 border-yellow-300';
-                          textColorClass = 'text-yellow-800';
-                        } else {
-                          // Default case for sessions with some attendance
-                          dayColorClass = 'bg-blue-100 border-blue-300';
-                          textColorClass = 'text-blue-800';
-                        }
-                      } else {
-                        dayColorClass = 'bg-gray-100 border-gray-300';
-                        textColorClass = 'text-gray-800';
-                      }
+                      // Past training day
+                      dayColorClass = 'bg-blue-100';
+                      textColorClass = 'text-blue-800';
                     } else {
-                      dayColorClass = 'bg-blue-50 border-blue-200';
+                      // Future training day
+                      dayColorClass = 'bg-blue-50';
                       textColorClass = 'text-blue-700';
                     }
+                  } else if (!day.isCurrentMonth) {
+                    dayColorClass = 'bg-gray-50';
+                    textColorClass = 'text-gray-400';
                   }
 
                   return (
                   <div
                     key={`${weekIdx}-${dayIdx}`}
-                      className={`relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] border rounded cursor-pointer hover:opacity-80 transition-opacity text-xs sm:text-sm ${
-                        day.isCurrentMonth ? dayColorClass || 'bg-white' : 'bg-gray-50 text-gray-400'
-                      } ${day.isToday ? 'ring-2 ring-blue-500' : ''} ${textColorClass || 'text-gray-900'}`}
+                      className={`relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] border rounded cursor-pointer hover:opacity-80 transition-opacity ${dayColorClass} ${textColorClass} ${day.isToday ? 'ring-2 ring-blue-500' : ''}`}
                                     onClick={() => {
                         if (day.dayData?.isScheduled) {
                           if (day.dayData.isCancelled) {
@@ -753,36 +742,30 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                         }
                       }}
                     >
-                      <div className="font-medium">{day.date.getDate()}</div>
+                      <div className="text-center space-y-1">
+                        <div className="text-sm font-medium">{day.date.getDate()}</div>
 
-                      {day.dayData?.isScheduled && (
-                        <div className="text-xs mt-1">
-                          {day.dayData.isCancelled ? (
-                            <div className="text-center">
-                              <Ban className="h-3 w-3 mx-auto mb-1" />
-                              <div>Cancelled</div>
+                        {day.dayData?.isScheduled && !day.dayData.isCancelled && (
+                          <>
+                            <div className="text-xs text-gray-600">
+                              {formatTime(day.dayData.scheduleInfo?.startTime)}
                               </div>
-                          ) : (
-                            <div className="text-center">
-                              <Clock className="h-3 w-3 mx-auto mb-1" />
-                              <div>
-                                {day.dayData.scheduleInfo?.startTime?.split(':')[0]}h
-                                {day.date <= new Date() && <span className="ml-1 opacity-75">(Past)</span>}
+                            <div className="text-xs text-gray-600">
+                              {formatTime(day.dayData.scheduleInfo?.endTime)}
                           </div>
-                      </div>
-                    )}
-                  </div>
+                          </>
                         )}
 
-                      {/* Simplified click handler for now */}
+                        {day.dayData?.isCancelled && (
+                          <div className="text-xs text-red-500">Cancelled</div>
+                        )}
+                      </div>
+
+                      {/* Click overlay for actions */}
                       {day.dayData?.isScheduled && (
-                        <div className="absolute inset-0 bg-black bg-opacity-10 rounded opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="text-xs text-white font-medium">
-                            Tap for actions
-              </div>
-              </div>
+                        <div className="absolute inset-0 bg-transparent rounded cursor-pointer" />
                     )}
-              </div>
+                  </div>
                   );
                 })
               )}
