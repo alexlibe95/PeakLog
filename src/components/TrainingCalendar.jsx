@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -93,7 +95,12 @@ const TrainingCalendar = ({ clubId, clubName }) => {
 
   const loadSessionAttendance = async (sessionId) => {
     try {
-      const attendance = await clubService.getSessionAttendance(sessionId);
+      let attendance = [];
+
+      // If sessionId exists, get existing attendance records
+      if (sessionId) {
+        attendance = await clubService.getSessionAttendance(sessionId);
+      }
 
       // Load club members to ensure we have all athletes for attendance marking
       if (clubMembers.length === 0) {
@@ -200,8 +207,35 @@ const TrainingCalendar = ({ clubId, clubName }) => {
     }
 
     try {
+      let sessionId = selectedSession.id;
+
+      // If session doesn't exist yet (past session with no attendance marked), create it first
+      if (!sessionId) {
+        const sessionData = {
+          clubId: clubId,
+          programId: selectedSession.programId || 'general-training',
+          title: selectedSession.programName,
+          description: `${selectedSession.day} training session`,
+          date: new Date(selectedSession.dateString || selectedSession.date),
+          startTime: selectedSession.startTime,
+          endTime: selectedSession.endTime,
+          coachId: user.uid,
+          maxParticipants: null,
+          location: ''
+        };
+
+        const createdSession = await clubService.createTrainingSession(sessionData);
+        sessionId = createdSession.id;
+
+        toast({
+          title: "Training session created",
+          description: "Session created for attendance marking",
+        });
+      }
+
+      // Mark attendance for all athletes
       await clubService.bulkMarkAttendance(
-        selectedSession.id,
+        sessionId,
         sessionAttendance.map(attendance => ({
           athleteId: attendance.athleteId,
           status: attendance.status,
@@ -465,17 +499,56 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                                     size="sm"
                                     className="h-5 sm:h-6 w-full text-xs p-0.5 sm:p-1 bg-blue-50 hover:bg-blue-100"
                                     title={`Edit attendance for ${formatDate(day.date)} (Past Session)`}
-                                    onClick={() => {
+                                    onClick={async () => {
                                       setSelectedDate(day.date);
-                                      setSelectedSession(day.dayData.session);
                                       setLoadingAthletes(true);
 
-                                      if (day.dayData.session) {
-                                        loadSessionAttendance(day.dayData.session.id);
-                                        setShowAttendanceDialog(true);
-                                      }
+                                      try {
+                                        let sessionToUse = day.dayData.session;
 
-                                      setLoadingAthletes(false);
+                                        // If no session exists for this date, check if one exists in Firestore
+                                        if (!sessionToUse) {
+                                          const sessionsQuery = query(
+                                            collection(db, 'trainingSessions'),
+                                            where('clubId', '==', clubId),
+                                            where('date', '==', day.date)
+                                          );
+                                          const sessionsSnap = await getDocs(sessionsQuery);
+
+                                          if (!sessionsSnap.empty) {
+                                            // Found existing session
+                                            sessionToUse = {
+                                              ...sessionsSnap.docs[0].data(),
+                                              id: sessionsSnap.docs[0].id
+                                            };
+                                          } else {
+                                            // No existing session - create a temporary session object
+                                            sessionToUse = {
+                                              id: null, // Will be created when attendance is saved
+                                              programName: day.dayData.scheduleInfo?.programName || 'Training Session',
+                                              programId: day.dayData.scheduleInfo?.programId || 'general-training',
+                                              day: day.dayData.dayOfWeek,
+                                              startTime: day.dayData.scheduleInfo?.startTime,
+                                              endTime: day.dayData.scheduleInfo?.endTime,
+                                              date: day.date,
+                                              dateString: day.date.toISOString().split('T')[0]
+                                            };
+                                          }
+                                        }
+
+                                        setSelectedSession(sessionToUse);
+                                        await loadSessionAttendance(sessionToUse.id);
+                                        setShowAttendanceDialog(true);
+                                      } catch (error) {
+                                        console.error('Error setting up attendance dialog:', error);
+                                        toast({
+                                          title: 'Error',
+                                          description: 'Failed to load attendance data',
+                                          variant: 'destructive'
+                                        });
+                                      } finally {
+                                        setLoadingAthletes(false);
+                                      }
                                     }}
                                   >
                                     <Users className="h-2 w-2 sm:h-3 sm:w-3 mr-1 text-blue-600" />
@@ -702,13 +775,13 @@ const TrainingCalendar = ({ clubId, clubName }) => {
               <Button variant="outline" onClick={() => setShowAttendanceDialog(false)} className="w-full sm:w-auto">
                 Close
               </Button>
-              <Button
+            <Button
                 onClick={handleAttendanceUpdate}
                 disabled={sessionAttendance.length === 0}
                 className="w-full sm:w-auto"
-              >
+            >
                 Update All Attendance
-              </Button>
+            </Button>
             </div>
           </DialogFooter>
         </DialogContent>
