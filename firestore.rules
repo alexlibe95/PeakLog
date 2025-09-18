@@ -14,6 +14,8 @@ service cloud.firestore {
     function isAdmin() {
       return userRole() == 'admin' || isSuper();
     }
+
+    // CLUB-SPECIFIC role helpers (preferred over global roles)
     function isClubMember(clubId) {
       return isSignedIn() && exists(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid));
     }
@@ -22,14 +24,12 @@ service cloud.firestore {
         get(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid)).data.role in ['admin', 'super'];
     }
 
-
     // ===== USER PROFILES =====
     match /users/{userId} {
-      allow read: if isSignedIn() && (
-        request.auth.uid == userId ||
-        isAdmin() ||
-        isSuper()
-      );
+      // Allow users to always read their own profile
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      // Allow admins and super admins to read any user profile
+      allow read: if isAdmin() || isSuper();
       allow write: if isSignedIn() && (
         request.auth.uid == userId ||
         isSuper() ||
@@ -47,18 +47,28 @@ service cloud.firestore {
 
       // ===== CLUB MEMBERS =====
       match /members/{memberId} {
-        allow read: if isSignedIn() && (isAdmin() || isSuper() || isClubMember(clubId) || isClubAdmin(clubId));
-        allow write: if isSignedIn() && (isAdmin() || isSuper() || isClubAdmin(clubId));
+        // Allow users to read their own membership
+        allow read: if isSignedIn() && request.auth.uid == memberId;
+        // Allow club members and admins to read memberships (prioritize club-specific roles)
+        allow read: if isClubMember(clubId) || isClubAdmin(clubId);
+        // Fallback to global roles for cross-club operations
+        allow read: if isAdmin() || isSuper();
+        allow write: if isSignedIn() && (isClubAdmin(clubId) || isAdmin() || isSuper());
         // Allow invited user to create their own membership
         allow create: if isSignedIn() && request.auth.uid == memberId &&
           request.resource.data.inviteId is string &&
           exists(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)) &&
           get(/databases/$(database)/documents/clubs/$(clubId)/invites/$(request.resource.data.inviteId)).data.email == request.auth.token.email;
+        // Allow users to create their own membership from pending assignments
+        allow create: if isSignedIn() && request.auth.uid == memberId;
       }
 
       // ===== CLUB CATEGORIES =====
       match /categories/{categoryId} {
-        allow read: if isSignedIn() && (isClubMember(clubId) || isClubAdmin(clubId) || isAdmin() || isSuper());
+        // Prioritize club-specific roles for club operations
+        allow read: if isSignedIn() && (isClubMember(clubId) || isClubAdmin(clubId));
+        // Fallback to global roles for cross-club operations
+        allow read: if isSignedIn() && (isAdmin() || isSuper());
         allow write: if isSignedIn() && (isClubAdmin(clubId) || isSuper());
       }
 
@@ -106,13 +116,18 @@ service cloud.firestore {
 
       // ===== PENDING ASSIGNMENTS =====
       match /pendingAssignments/{assignmentId} {
-        // Allow users to read their own pending assignments (by email)
-        allow read: if isSignedIn() && (
-          isClubAdmin(clubId) ||
-          isSuper() ||
-          request.auth.token.email.replace('.', '_') == assignmentId
-        );
-        allow write: if isClubAdmin(clubId) || isSuper();
+        // Allow the assignment owner to read their own assignment
+        allow read: if request.auth != null && request.auth.token.email.replace('.', '_') == assignmentId;
+        // Allow club admins to read all assignments
+        allow read: if request.auth != null && isClubAdmin(clubId);
+        // Allow global admins to read all assignments
+        allow read: if request.auth != null && (isAdmin() || isSuper());
+        // Allow write access for club admins
+        allow write: if request.auth != null && isClubAdmin(clubId);
+        // Allow global admins to write assignments
+        allow write: if request.auth != null && (isAdmin() || isSuper());
+        // Allow the assignment owner to delete their own assignment
+        allow delete: if request.auth != null && request.auth.token.email.replace('.', '_') == assignmentId;
       }
     }
 

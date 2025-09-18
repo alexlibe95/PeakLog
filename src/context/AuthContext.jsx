@@ -94,40 +94,107 @@ export const AuthProvider = ({ children }) => {
           }
 
           // If user not linked yet, try to attach any pending assignments by email
+          console.log('🔍 Auth state check - userMemberships.length:', userMemberships.length, 'profile.role:', profile?.role);
           if ((userMemberships.length === 0 || profile?.role === 'pending') && isMounted) {
+            console.log('✅ Condition met, checking for pending assignments for email:', firebaseUser.email);
             try {
+
               // Check for pending assignments across all clubs
               const clubsSnap = await getDocs(collection(db, 'clubs'));
+              console.log('📋 Found clubs:', clubsSnap.docs.length);
+
               for (const clubDoc of clubsSnap.docs) {
                 if (!isMounted) break;
 
                 const clubId = clubDoc.id;
-                const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', firebaseUser.email.replace('.', '_'));
-                const assignmentSnap = await getDoc(assignmentRef);
+                const emailKey = firebaseUser.email.replace('.', '_');
+                console.log('🔑 Looking for pending assignment with key:', emailKey, 'in club:', clubId);
+                console.log('📧 User email:', firebaseUser.email);
+                console.log('🔢 Email key generated:', emailKey);
+
+                const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', emailKey);
+                console.log('📍 Attempting to read assignment document:', assignmentRef.path);
+
+                let assignmentSnap;
+                try {
+                  assignmentSnap = await getDoc(assignmentRef);
+                  console.log('🔍 Assignment document exists:', assignmentSnap.exists());
+                } catch (readError) {
+                  console.error('❌ Error reading assignment document:', readError);
+                  console.error('❌ Read error details:', {
+                    message: readError.message,
+                    code: readError.code,
+                    path: assignmentRef.path
+                  });
+                  // Continue to next club instead of failing completely
+                  continue;
+                }
 
                 if (assignmentSnap.exists()) {
                   const assignmentData = assignmentSnap.data();
+                  console.log('✅ Found pending assignment:', assignmentData);
+                  console.log('📋 Assignment data details:', {
+                    email: assignmentData.email,
+                    role: assignmentData.role,
+                    firstName: assignmentData.firstName,
+                    lastName: assignmentData.lastName,
+                    status: assignmentData.status,
+                    assignedAt: assignmentData.assignedAt
+                  });
+
                   const role = assignmentData.role || 'athlete';
                   const firstName = assignmentData.firstName || '';
                   const lastName = assignmentData.lastName || '';
 
+                  console.log('👤 Processing assignment - Role:', role, 'Names:', firstName, lastName);
+
                   // Add user to club membership
-                  await setDoc(doc(db, 'clubs', clubId, 'members', firebaseUser.uid), {
+                  console.log('👥 Creating membership document for user:', firebaseUser.uid, 'in club:', clubId);
+                  const membershipData = {
                     role,
                     status: 'active',
                     assignedAt: assignmentData.assignedAt,
                     joinedAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
-                  }, { merge: true });
+                  };
+                  console.log('📝 Membership data:', membershipData);
+
+                  try {
+                    await setDoc(doc(db, 'clubs', clubId, 'members', firebaseUser.uid), membershipData, { merge: true });
+                    console.log('✅ Successfully created membership document');
+                  } catch (membershipError) {
+                    console.error('❌ Error creating membership document:', membershipError);
+                    console.error('❌ Membership error details:', {
+                      message: membershipError.message,
+                      code: membershipError.code,
+                      userId: firebaseUser.uid,
+                      clubId: clubId
+                    });
+                    throw membershipError; // Re-throw to be caught by outer catch
+                  }
 
                   // Update user profile with new membership and optional name data
+                  console.log('👤 Updating user profile for:', firebaseUser.uid);
+                  console.log('📊 Current profile role:', profile.role, 'New membership role:', role);
+
+                  // Keep global role as athlete for regular users (don't promote automatically)
+                  // Only super admins should have global super role (set manually)
+                  let newGlobalRole = profile.role;
+                  if (profile.role === 'pending') {
+                    // First membership - set to athlete (most restrictive)
+                    newGlobalRole = 'athlete';
+                  }
+                  // Don't promote roles automatically - keep current global role
+
+                  console.log('🔄 Global role update:', profile.role, '->', newGlobalRole, '(club role:', role, ')');
+
                   const updateData = {
                     memberships: arrayUnion({
                       clubId,
                       role,
                       joinedAt: new Date().toISOString()
                     }),
-                    role: profile.role === 'pending' ? role : profile.role,
+                    role: newGlobalRole,
                     updatedAt: new Date().toISOString()
                   };
 
@@ -135,19 +202,48 @@ export const AuthProvider = ({ children }) => {
                   if (firstName) updateData.firstName = firstName;
                   if (lastName) updateData.lastName = lastName;
 
-                  await updateDoc(doc(db, 'users', firebaseUser.uid), updateData);
+                  console.log('📝 User profile update data:', updateData);
+
+                  try {
+                    await updateDoc(doc(db, 'users', firebaseUser.uid), updateData);
+                    console.log('✅ Successfully updated user profile');
+                  } catch (profileError) {
+                    console.error('❌ Error updating user profile:', profileError);
+                    console.error('❌ Profile error details:', {
+                      message: profileError.message,
+                      code: profileError.code,
+                      userId: firebaseUser.uid,
+                      updateData: updateData
+                    });
+                    throw profileError; // Re-throw to be caught by outer catch
+                  }
 
                   // Mark assignment as completed and remove it
-                  await deleteDoc(assignmentRef);
+                  console.log('🗑️ Deleting pending assignment document');
+                  try {
+                    await deleteDoc(assignmentRef);
+                    console.log('✅ Successfully deleted pending assignment');
+                  } catch (deleteError) {
+                    console.error('❌ Error deleting pending assignment:', deleteError);
+                    console.error('❌ Delete error details:', {
+                      message: deleteError.message,
+                      code: deleteError.code,
+                      path: assignmentRef.path
+                    });
+                    // Don't throw here - assignment deletion failure shouldn't block the process
+                  }
 
                   // refresh profile and memberships after linking
                   const refreshed = await getDoc(doc(db, 'users', firebaseUser.uid));
                   profile = refreshed.data();
+                  console.log('🔄 Refreshed user profile:', profile);
+                  console.log('🎯 Final global role after assignment:', profile.role);
                   if (isMounted) {
                     setUserProfile(profile);
                   }
 
                   const refreshedMemberships = await clubService.getUserMemberships(firebaseUser.uid);
+                  console.log('🔄 Refreshed memberships:', refreshedMemberships);
                   if (isMounted) {
                     setMemberships(refreshedMemberships);
                   }
@@ -156,13 +252,22 @@ export const AuthProvider = ({ children }) => {
                   if (!currentClubId && refreshedMemberships.length > 0 && isMounted) {
                     setCurrentClubId(refreshedMemberships[0].clubId);
                     setCurrentRole(refreshedMemberships[0].role);
+                    console.log('🏢 Set current club and role:', refreshedMemberships[0].clubId, refreshedMemberships[0].role);
                   }
                   break;
                 }
               }
             } catch (linkErr) {
-              console.error('Error linking assignment on auth state change', linkErr);
+              console.error('❌ Error linking assignment on auth state change:', linkErr);
+              console.error('❌ Error details:', {
+                message: linkErr.message,
+                code: linkErr.code,
+                email: firebaseUser.email,
+                uid: firebaseUser.uid
+              });
             }
+          } else {
+            console.log('❌ Condition NOT met for checking pending assignments');
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
@@ -214,6 +319,216 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     return signOut(auth);
+  };
+
+  // Test function to check pending assignment permissions
+  const testPendingAssignmentAccess = async () => {
+    if (!user) {
+      console.log('❌ No user logged in');
+      return;
+    }
+
+    try {
+      console.log('🧪 Testing pending assignment access for:', user.email);
+
+      // Get all clubs
+      const clubsSnap = await getDocs(collection(db, 'clubs'));
+      console.log('📋 Found clubs for testing:', clubsSnap.docs.length);
+
+      for (const clubDoc of clubsSnap.docs) {
+        const clubId = clubDoc.id;
+        const emailKey = user.email.replace('.', '_');
+        console.log('🔍 Testing access to pending assignment:', emailKey, 'in club:', clubId);
+
+        const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', emailKey);
+        console.log('📍 Testing document path:', assignmentRef.path);
+
+        try {
+          const assignmentSnap = await getDoc(assignmentRef);
+          console.log('🔍 Assignment document exists:', assignmentSnap.exists());
+
+          if (assignmentSnap.exists()) {
+            console.log('✅ Successfully read pending assignment:', assignmentSnap.data());
+            return true;
+          } else {
+            console.log('ℹ️ No pending assignment found for this club');
+          }
+        } catch (readError) {
+          console.error('❌ Error reading assignment document in test:', readError);
+          console.error('❌ Test read error details:', {
+            message: readError.message,
+            code: readError.code,
+            path: assignmentRef.path,
+            email: user.email,
+            emailKey: emailKey
+          });
+        }
+      }
+
+      console.log('ℹ️ No pending assignments found in any club');
+      return false;
+    } catch (error) {
+      console.error('❌ Error testing pending assignment access:', error);
+      return false;
+    }
+  };
+
+  // Test function to list all pending assignments in all clubs
+  const listAllPendingAssignments = async () => {
+    try {
+      console.log('📋 Listing all pending assignments...');
+
+      // Get all clubs
+      const clubsSnap = await getDocs(collection(db, 'clubs'));
+      console.log('📋 Found clubs:', clubsSnap.docs.length);
+
+      for (const clubDoc of clubsSnap.docs) {
+        const clubId = clubDoc.id;
+        console.log(`🏢 Checking club: ${clubId}`);
+
+        try {
+          const pendingAssignmentsRef = collection(db, 'clubs', clubId, 'pendingAssignments');
+          const assignmentsSnap = await getDocs(pendingAssignmentsRef);
+
+          console.log(`📄 Found ${assignmentsSnap.docs.length} pending assignments in club ${clubId}`);
+
+          assignmentsSnap.docs.forEach((doc) => {
+            const data = doc.data();
+            console.log(`📝 Assignment ID: ${doc.id}`, {
+              email: data.email,
+              role: data.role,
+              status: data.status,
+              assignedAt: data.assignedAt
+            });
+          });
+        } catch (error) {
+          console.error(`❌ Error reading pending assignments for club ${clubId}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error listing pending assignments:', error);
+    }
+  };
+
+  // Expose test functions for debugging
+  window.testPendingAssignmentAccess = testPendingAssignmentAccess;
+  window.listAllPendingAssignments = listAllPendingAssignments;
+
+  // Manual function to check and process pending assignments
+  const checkAndProcessPendingAssignments = async (firebaseUser) => {
+    try {
+      console.log('🔍 Manual check for pending assignments for user:', firebaseUser.email);
+
+      // Get current user profile and memberships
+      const userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (!userDocSnap.exists()) {
+        console.log('❌ User profile not found, skipping pending assignment check');
+        return;
+      }
+
+      const profile = userDocSnap.data();
+      const userMemberships = await clubService.getUserMemberships(firebaseUser.uid);
+
+      console.log('📋 Current state - memberships:', userMemberships.length, 'role:', profile.role);
+
+      // Check if we should process pending assignments
+      if (userMemberships.length === 0 || profile.role === 'pending') {
+        console.log('✅ Processing pending assignments for user');
+
+        // Check for pending assignments across all clubs
+        const clubsSnap = await getDocs(collection(db, 'clubs'));
+        console.log('📋 Found clubs:', clubsSnap.docs.length);
+
+        for (const clubDoc of clubsSnap.docs) {
+          const clubId = clubDoc.id;
+          const emailKey = firebaseUser.email.replace('.', '_');
+          console.log('🔑 Checking for pending assignment with key:', emailKey, 'in club:', clubId);
+
+          const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', emailKey);
+          const assignmentSnap = await getDoc(assignmentRef);
+
+          if (assignmentSnap.exists()) {
+            const assignmentData = assignmentSnap.data();
+            console.log('✅ Found pending assignment:', assignmentData);
+
+            const role = assignmentData.role || 'athlete';
+            const firstName = assignmentData.firstName || '';
+            const lastName = assignmentData.lastName || '';
+
+            console.log('👤 Processing assignment - Role:', role, 'Names:', firstName, lastName);
+
+            // Add user to club membership
+            await setDoc(doc(db, 'clubs', clubId, 'members', firebaseUser.uid), {
+              role,
+              status: 'active',
+              assignedAt: assignmentData.assignedAt,
+              joinedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
+            // Update user profile with new membership and optional name data
+            console.log('👤 Updating user profile for:', firebaseUser.uid);
+            console.log('📊 Current profile role:', profile.role, 'New membership role:', role);
+
+            // Keep global role as athlete for regular users (don't promote automatically)
+            // Only super admins should have global super role (set manually)
+            let newGlobalRole = profile.role;
+            if (profile.role === 'pending') {
+              // First membership - set to athlete (most restrictive)
+              newGlobalRole = 'athlete';
+            }
+            // Don't promote roles automatically - keep current global role
+
+            console.log('🔄 Global role update:', profile.role, '->', newGlobalRole, '(club role:', role, ')');
+
+            const updateData = {
+              memberships: arrayUnion({
+                clubId,
+                role,
+                joinedAt: new Date().toISOString()
+              }),
+              role: newGlobalRole,
+              updatedAt: new Date().toISOString()
+            };
+
+            // Add name fields if provided
+            if (firstName) updateData.firstName = firstName;
+            if (lastName) updateData.lastName = lastName;
+
+            await updateDoc(doc(db, 'users', firebaseUser.uid), updateData);
+
+            // Mark assignment as completed and remove it
+            await deleteDoc(assignmentRef);
+            console.log('🗑️ Deleted pending assignment and processed membership');
+
+            // Refresh local state
+            const refreshed = await getDoc(doc(db, 'users', firebaseUser.uid));
+            const refreshedProfile = refreshed.data();
+            const refreshedMemberships = await clubService.getUserMemberships(firebaseUser.uid);
+
+            console.log('🔄 Refreshed user profile:', refreshedProfile);
+            console.log('🎯 Final global role after manual assignment:', refreshedProfile.role);
+
+            setUserProfile(refreshedProfile);
+            setMemberships(refreshedMemberships);
+
+            // Set current club and role if not set
+            if (!currentClubId && refreshedMemberships.length > 0) {
+              setCurrentClubId(refreshedMemberships[0].clubId);
+              setCurrentRole(refreshedMemberships[0].role);
+              console.log('🏢 Set current club and role:', refreshedMemberships[0].clubId, refreshedMemberships[0].role);
+            }
+
+            console.log('✅ Successfully processed pending assignment');
+            break; // Only process one assignment
+          }
+        }
+      } else {
+        console.log('❌ User already has memberships or is not pending, skipping assignment check');
+      }
+    } catch (error) {
+      console.error('❌ Error in manual pending assignment check:', error);
+    }
   };
 
   const changePassword = async (currentPassword, newPassword) => {
@@ -410,6 +725,7 @@ export const AuthProvider = ({ children }) => {
       // Check if user profile exists, create if needed
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
       if (!userDoc.exists()) {
+        console.log('📝 Creating new user profile for email link user:', result.user.email);
         // Create default profile for new email link users with new structure
         const defaultProfile = {
           email: result.user.email,
@@ -422,6 +738,20 @@ export const AuthProvider = ({ children }) => {
           updatedAt: new Date().toISOString()
         };
         await setDoc(doc(db, 'users', result.user.uid), defaultProfile);
+        console.log('✅ Created user profile with role "pending"');
+
+        // For email link users, manually check for pending assignments after a brief delay
+        // This ensures pending assignments are processed even if auth state change doesn't trigger immediately
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Manual pending assignment check for email link user:', result.user.email);
+            await checkAndProcessPendingAssignments(result.user);
+          } catch (error) {
+            console.error('❌ Error in manual pending assignment check:', error);
+          }
+        }, 2000); // Wait 2 seconds for profile to be fully created
+      } else {
+        console.log('ℹ️ User profile already exists for email link user');
       }
 
       return result;

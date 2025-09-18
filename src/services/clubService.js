@@ -153,7 +153,10 @@ export const clubService = {
     } else {
       // User doesn't exist, store the email and optional name for future assignment
       // When user registers, AuthContext will check for pending assignments
-      const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', email.replace('.', '_'));
+      const emailKey = email.replace('.', '_');
+      console.log('💾 Creating pending assignment for email:', email, 'with key:', emailKey, 'in club:', clubId);
+
+      const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', emailKey);
       await setDoc(assignmentRef, {
         email,
         role: 'admin',
@@ -352,7 +355,10 @@ export const clubService = {
       return await this.assignAthleteByUserId(clubId, userId);
     } else {
       // User doesn't exist, store the email and optional name for future assignment
-      const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', email.replace('.', '_'));
+      const emailKey = email.replace('.', '_');
+      console.log('💾 Creating pending assignment for email:', email, 'with key:', emailKey, 'in club:', clubId);
+
+      const assignmentRef = doc(db, 'clubs', clubId, 'pendingAssignments', emailKey);
       await setDoc(assignmentRef, {
         email,
         role: 'athlete',
