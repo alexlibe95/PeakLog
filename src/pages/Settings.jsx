@@ -222,31 +222,6 @@ const Settings = () => {
             </CardHeader>
                       <CardContent>
             <form onSubmit={handleSave} className="space-y-6">
-                {/* Profile Picture Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                      {userProfile?.profilePicture ? (
-                        <img
-                          src={userProfile.profilePicture}
-                          alt="Profile"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-8 h-8 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Profile Picture</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Profile picture upload is currently disabled.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
                 {/* Email (Read-only) */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="flex items-center gap-2">
