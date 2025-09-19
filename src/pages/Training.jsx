@@ -257,15 +257,15 @@ const Training = () => {
 
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <BookOpen className="h-8 w-8 text-primary" />
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-4">
+              <div className="p-2 sm:p-3 bg-primary/10 rounded-full">
+                <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               </div>
-              <h1 className="text-4xl font-bold text-primary">My Training Journey</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">My Training Journey</h1>
             </div>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-lg sm:text-xl text-muted-foreground px-2">
               Track your progress, celebrate achievements, and pursue your goals at {currentClubName}
             </p>
           </div>
@@ -313,7 +313,7 @@ const Training = () => {
                               {session.status === 'present' ? 'Present' : 'Late'}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {formatDate(session.date)}
