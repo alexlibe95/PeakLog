@@ -593,19 +593,19 @@ const TrainingManagement = () => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
+                  <DialogHeader className="pb-6">
                     <DialogTitle>Create Training Program</DialogTitle>
                     <DialogDescription>
                       Create a comprehensive training program for {currentClubName}
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleCreateProgram}>
-                    <div className="space-y-6 py-4">
+                    <div className="space-y-6 pt-2 pb-4">
                       {/* Basic Information */}
                     <div className="space-y-4">
                         <h4 className="text-sm font-medium text-primary">Basic Information</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+                      <div className="space-y-2">
                             <Label htmlFor="programName">Program Name *</Label>
                         <Input
                           id="programName"
@@ -615,7 +615,7 @@ const TrainingManagement = () => {
                           required
                         />
                       </div>
-                      <div>
+                      <div className="space-y-2">
                             <Label htmlFor="difficulty">Difficulty Level</Label>
                             <Select
                               value={programForm.difficulty}
@@ -633,7 +633,7 @@ const TrainingManagement = () => {
                             </Select>
                           </div>
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="programDescription">Program Description</Label>
                         <Textarea
                           id="programDescription"
@@ -643,7 +643,7 @@ const TrainingManagement = () => {
                           rows={3}
                         />
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="objectives">Training Objectives</Label>
                           <Textarea
                             id="objectives"
@@ -659,7 +659,7 @@ const TrainingManagement = () => {
                       <div className="space-y-4">
                         <h4 className="text-sm font-medium text-primary">Training Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
+                          <div className="space-y-2">
                             <Label htmlFor="duration">Typical Duration</Label>
                             <Input
                               id="duration"
@@ -668,7 +668,7 @@ const TrainingManagement = () => {
                               placeholder="e.g., 90 minutes, 2 hours"
                             />
                           </div>
-                          <div>
+                          <div className="space-y-2">
                             <Label htmlFor="targetSkills">Target Skills</Label>
                             <Input
                               id="targetSkills"
@@ -678,7 +678,7 @@ const TrainingManagement = () => {
                             />
                           </div>
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="equipment">Equipment Needed</Label>
                           <Textarea
                             id="equipment"
@@ -693,7 +693,7 @@ const TrainingManagement = () => {
                       {/* Preparation & Instructions */}
                       <div className="space-y-4">
                         <h4 className="text-sm font-medium text-primary">Preparation & Instructions</h4>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="preparationTips">Preparation Tips</Label>
                           <Textarea
                             id="preparationTips"
@@ -703,7 +703,7 @@ const TrainingManagement = () => {
                             rows={3}
                           />
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="specialInstructions">Special Instructions</Label>
                           <Textarea
                             id="specialInstructions"
@@ -715,11 +715,11 @@ const TrainingManagement = () => {
                         </div>
                       </div>
                     </div>
-                    <DialogFooter className="mt-6">
-                      <Button type="button" variant="outline" onClick={() => setShowCreateProgram(false)}>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-3 pt-6">
+                      <Button type="button" variant="outline" onClick={() => setShowCreateProgram(false)} className="w-full sm:w-auto">
                         Cancel
                       </Button>
-                      <Button type="submit">Create Program</Button>
+                      <Button type="submit" className="w-full sm:w-auto">Create Program</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -728,19 +728,19 @@ const TrainingManagement = () => {
               {/* Edit Program Dialog */}
               <Dialog open={showEditProgram} onOpenChange={setShowEditProgram}>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
+                  <DialogHeader className="pb-6">
                     <DialogTitle>Edit Training Program</DialogTitle>
                     <DialogDescription>
                       Update the details for {editingProgram?.name}
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleEditProgram}>
-                    <div className="space-y-6 py-4">
+                    <div className="space-y-6 pt-2 pb-4">
                       {/* Basic Information */}
                       <div className="space-y-4">
                         <h4 className="text-sm font-medium text-primary">Basic Information</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
+                          <div className="space-y-2">
                             <Label htmlFor="edit-programName">Program Name *</Label>
                             <Input
                               id="edit-programName"
@@ -750,7 +750,7 @@ const TrainingManagement = () => {
                               required
                             />
                           </div>
-                          <div>
+                          <div className="space-y-2">
                             <Label htmlFor="edit-difficulty">Difficulty Level</Label>
                             <Select
                               value={programForm.difficulty}
@@ -768,7 +768,7 @@ const TrainingManagement = () => {
                             </Select>
                           </div>
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="edit-programDescription">Program Description</Label>
                           <Textarea
                             id="edit-programDescription"
@@ -778,7 +778,7 @@ const TrainingManagement = () => {
                             rows={3}
                           />
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="edit-objectives">Training Objectives</Label>
                           <Textarea
                             id="edit-objectives"
@@ -794,7 +794,7 @@ const TrainingManagement = () => {
                       <div className="space-y-4">
                         <h4 className="text-sm font-medium text-primary">Training Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
+                          <div className="space-y-2">
                             <Label htmlFor="edit-duration">Typical Duration</Label>
                             <Input
                               id="edit-duration"
@@ -803,7 +803,7 @@ const TrainingManagement = () => {
                               placeholder="e.g., 90 minutes, 2 hours"
                             />
                           </div>
-                          <div>
+                          <div className="space-y-2">
                             <Label htmlFor="edit-targetSkills">Target Skills</Label>
                             <Input
                               id="edit-targetSkills"
@@ -813,7 +813,7 @@ const TrainingManagement = () => {
                             />
                           </div>
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="edit-equipment">Equipment Needed</Label>
                           <Textarea
                             id="edit-equipment"
@@ -828,7 +828,7 @@ const TrainingManagement = () => {
                       {/* Preparation & Instructions */}
                       <div className="space-y-4">
                         <h4 className="text-sm font-medium text-primary">Preparation & Instructions</h4>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="edit-preparationTips">Preparation Tips</Label>
                           <Textarea
                             id="edit-preparationTips"
@@ -838,7 +838,7 @@ const TrainingManagement = () => {
                             rows={3}
                           />
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="edit-specialInstructions">Special Instructions</Label>
                           <Textarea
                             id="edit-specialInstructions"
@@ -850,11 +850,11 @@ const TrainingManagement = () => {
                         </div>
                       </div>
                     </div>
-                    <DialogFooter className="mt-6">
-                      <Button type="button" variant="outline" onClick={closeEditProgram}>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-3 pt-6">
+                      <Button type="button" variant="outline" onClick={closeEditProgram} className="w-full sm:w-auto">
                         Cancel
                       </Button>
-                      <Button type="submit">Update Program</Button>
+                      <Button type="submit" className="w-full sm:w-auto">Update Program</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -936,11 +936,11 @@ const TrainingManagement = () => {
                       </div>
                     ))}
                   </div>
-                  <DialogFooter className="mt-6">
-                    <Button type="button" variant="outline" onClick={() => setShowWeeklySchedule(false)}>
+                  <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-3 pt-6">
+                    <Button type="button" variant="outline" onClick={() => setShowWeeklySchedule(false)} className="w-full sm:w-auto">
                       Cancel
                     </Button>
-                    <Button onClick={handleScheduleSubmit}>
+                    <Button onClick={handleScheduleSubmit} className="w-full sm:w-auto">
                       Save Schedule
                     </Button>
                   </DialogFooter>
@@ -1241,7 +1241,7 @@ const AddProgramsDialog = ({ dayId, allPrograms, currentlyAssignedPrograms, onAs
             </div>
           ))}
         </div>
-        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-3 pt-6">
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}

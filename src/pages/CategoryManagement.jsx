@@ -305,7 +305,7 @@ const CategoryManagement = () => {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-md mx-4">
             <form onSubmit={handleSubmit}>
-              <DialogHeader>
+              <DialogHeader className="pb-6">
                 <DialogTitle>
                   {editingCategory ? 'Edit Category' : 'Create New Category'}
                 </DialogTitle>
@@ -317,7 +317,7 @@ const CategoryManagement = () => {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 pt-2 pb-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Category Name *</Label>
                   <Input
@@ -363,7 +363,7 @@ const CategoryManagement = () => {
                 </div>
               </div>
 
-              <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+              <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-3 pt-6">
                 <Button type="button" variant="outline" onClick={closeDialog} className="w-full sm:w-auto">
                   Cancel
                 </Button>

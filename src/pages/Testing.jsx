@@ -24,6 +24,7 @@ const Testing = () => {
   const [athletes, setAthletes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingPastTests, setLoadingPastTests] = useState(false);
 
   // Current test state
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -84,8 +85,13 @@ const Testing = () => {
       setAthletes(athleteMembers);
 
       // Load past tests
-      const tests = await testService.getTestSessionsWithResults(effectiveClubId);
-      setPastTests(tests);
+      setLoadingPastTests(true);
+      try {
+        const tests = await testService.getTestSessionsWithResults(effectiveClubId);
+        setPastTests(tests);
+      } finally {
+        setLoadingPastTests(false);
+      }
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -96,6 +102,7 @@ const Testing = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingPastTests(false); // Ensure past tests loading state is also reset
     }
   }, [effectiveClubId, toast]);
 
@@ -596,7 +603,11 @@ const Testing = () => {
                   disabled={saving || !selectedCategory}
                   className="w-full"
                 >
-                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
                   {saving ? 'Saving Test...' : 'Save Test Results'}
                 </Button>
               </CardContent>
@@ -616,7 +627,13 @@ const Testing = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {pastTests.length === 0 ? (
+                {loadingPastTests ? (
+                  <div className="text-center py-6 sm:py-8 px-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3 sm:mb-4"></div>
+                    <p className="text-sm sm:text-base text-muted-foreground">Loading past tests...</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">Fetching test results</p>
+                  </div>
+                ) : pastTests.length === 0 ? (
                   <div className="text-center py-6 sm:py-8 px-4">
                     <Target className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
                     <p className="text-sm sm:text-base text-muted-foreground">No tests recorded yet</p>
@@ -824,42 +841,49 @@ const Testing = () => {
                               </CardContent>
 
                               {editingTest?.id === test.id && (
-                                <div className="px-6 py-4 bg-gray-50 border-t">
-                                  <div className="flex flex-col sm:flex-row gap-3 justify-center sm:justify-end">
-                                    <Button
-                                      onClick={saveEditedTest}
-                                      disabled={saving}
-                                      size="sm"
-                                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-10 px-4"
-                                    >
-                                      <Check className="h-4 w-4" />
-                                      <span className="text-sm font-medium">
-                                        {saving ? 'Saving...' : 'Save Changes'}
-                                      </span>
-                                    </Button>
-                                    <Button
-                                      onClick={() => deleteTest(test)}
-                                      disabled={saving}
-                                      size="sm"
-                                      variant="destructive"
-                                      className="flex items-center gap-2 h-10 px-4"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                      <span className="text-sm font-medium">
-                                        {saving ? 'Deleting...' : 'Delete Test'}
-                                      </span>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      onClick={cancelEditing}
-                                      disabled={saving}
-                                      size="sm"
-                                      className="flex items-center gap-2 border-gray-300 text-gray-600 hover:bg-gray-50 h-10 px-4"
-                                    >
-                                      <X className="h-4 w-4" />
-                                      <span className="text-sm font-medium">Cancel</span>
-                                    </Button>
-                                  </div>
+                                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                                  {saving ? (
+                                    <div className="text-center py-4">
+                                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                                      <p className="text-sm text-muted-foreground">Processing changes...</p>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col sm:flex-row gap-3 justify-center sm:justify-end">
+                                      <Button
+                                        onClick={saveEditedTest}
+                                        disabled={saving}
+                                        size="sm"
+                                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-10 px-4 dark:bg-green-700 dark:hover:bg-green-600"
+                                      >
+                                        <Check className="h-4 w-4" />
+                                        <span className="text-sm font-medium">
+                                          {saving ? 'Saving...' : 'Save Changes'}
+                                        </span>
+                                      </Button>
+                                      <Button
+                                        onClick={() => deleteTest(test)}
+                                        disabled={saving}
+                                        size="sm"
+                                        variant="destructive"
+                                        className="flex items-center gap-2 h-10 px-4"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="text-sm font-medium">
+                                          {saving ? 'Deleting...' : 'Delete Test'}
+                                        </span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={cancelEditing}
+                                        disabled={saving}
+                                        size="sm"
+                                        className="flex items-center gap-2 border-gray-300 text-gray-600 hover:bg-gray-50 h-10 px-4 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      >
+                                        <X className="h-4 w-4" />
+                                        <span className="text-sm font-medium">Cancel</span>
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </>
