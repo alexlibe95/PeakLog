@@ -92,8 +92,10 @@ const MyProgress = () => {
             testNumber: index + 1,
             date: test.formattedDate,
             value: test.value,
+            displayValue: getDisplayValue(test.value, categoryData.category.unit), // Convert for chart display
             fullDate: test.date,
-            notes: test.notes
+            notes: test.notes,
+            category: categoryData.category
           }))
         };
       });
@@ -109,6 +111,19 @@ const MyProgress = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Convert stored value to display value based on unit
+  const getDisplayValue = (value, unit) => {
+    if (!unit || !value) return value;
+    
+    // For minutes unit, convert seconds back to minutes for chart display
+    if (unit.toLowerCase().includes('minute') || unit.toLowerCase().includes('min')) {
+      return value / 60; // Convert seconds to minutes
+    }
+    
+    // For other units, use the stored value as-is
+    return value;
   };
 
   // Determine if higher values are better for a category
@@ -130,8 +145,8 @@ const MyProgress = () => {
     if (data.length < 2) return null;
 
     const higherIsBetter = isHigherBetter(category);
-    const firstValue = data[0].value;
-    const lastValue = data[data.length - 1].value;
+    const firstValue = data[0].displayValue;
+    const lastValue = data[data.length - 1].displayValue;
 
     const improved = higherIsBetter ? lastValue > firstValue : lastValue < firstValue;
 
@@ -172,7 +187,7 @@ const MyProgress = () => {
           <p className="font-medium">{`Test ${label}`}</p>
           <p className="text-sm text-gray-600">{`Date: ${data.date}`}</p>
           <p className="text-sm text-blue-600 font-medium">
-            {`Value: ${formatValue(data.value, data.category?.unit)}`}
+            {`Value: ${data.displayValue.toFixed(2)} ${data.category?.unit}`}
           </p>
           {data.notes && (
             <p className="text-xs text-gray-500 mt-1 italic">{data.notes}</p>
@@ -257,7 +272,7 @@ const MyProgress = () => {
                           {data.length} test{data.length !== 1 ? 's' : ''}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          Latest: {formatValue(data[data.length - 1]?.value || 0, category.unit)}
+                          Latest: {(data[data.length - 1]?.displayValue || 0).toFixed(2)} {category.unit}
                         </span>
                       </div>
                     </CardDescription>
@@ -281,7 +296,7 @@ const MyProgress = () => {
                           <Tooltip content={<CustomTooltip />} />
                           <Line
                             type="monotone"
-                            dataKey="value"
+                            dataKey="displayValue"
                             stroke="#3b82f6"
                             strokeWidth={3}
                             dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
