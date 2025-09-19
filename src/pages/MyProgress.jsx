@@ -8,6 +8,7 @@ import { testService } from '@/services/testService';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Target, Calendar } from 'lucide-react';
+import { formatTimeValue, isTimeUnit } from '../utils/valueParser';
 
 const MyProgress = () => {
   const { user, currentClubId, memberships } = useAuth();
@@ -150,15 +151,14 @@ const MyProgress = () => {
   const formatValue = (value, unit) => {
     if (!unit) return value.toString();
 
+    // Use the time formatter for time units
+    if (isTimeUnit(unit)) {
+      return formatTimeValue(value);
+    }
+
     // Format based on unit type
     if (unit.toLowerCase().includes('kg') || unit.toLowerCase().includes('lbs')) {
       return `${value} ${unit}`;
-    }
-    if (unit.toLowerCase().includes('seconds') || unit.toLowerCase().includes('sec')) {
-      return `${value}s`;
-    }
-    if (unit.toLowerCase().includes('minutes') || unit.toLowerCase().includes('min')) {
-      return `${value}m`;
     }
 
     return `${value} ${unit}`;

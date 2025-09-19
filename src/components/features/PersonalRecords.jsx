@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { athletePerformanceService } from '@/services/athletePerformanceService';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
+import { formatTimeValue, isTimeUnit } from '../../utils/valueParser';
 
 const PersonalRecords = () => {
   const { user, currentClubId } = useAuth();
@@ -88,7 +89,9 @@ const PersonalRecords = () => {
                       </Badge>
                     </div>
                     <p className="text-2xl font-bold text-primary">
-                      {record.value} {getCategoryUnit(record.categoryId)}
+                      {isTimeUnit(getCategoryUnit(record.categoryId)) 
+                        ? formatTimeValue(record.value)
+                        : record.value} {getCategoryUnit(record.categoryId)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {new Date(record.date).toLocaleDateString()}

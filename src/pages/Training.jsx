@@ -6,6 +6,7 @@ import Navigation from '../components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { formatTimeValue, isTimeUnit } from '../utils/valueParser';
 import { 
   Calendar, 
   Award, 
@@ -363,7 +364,11 @@ const Training = () => {
                           <p className="text-xs text-muted-foreground">{formatDate(record.date)}</p>
                         </div>
                         <div className="text-right">
-                          <div className="font-bold text-amber-700">{record.value} {record.unit}</div>
+                          <div className="font-bold text-amber-700">
+                            {isTimeUnit(record.unit) 
+                              ? formatTimeValue(record.value)
+                              : record.value} {record.unit}
+                          </div>
                         </div>
                       </div>
                     ))}

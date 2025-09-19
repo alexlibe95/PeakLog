@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { formatTimeValue, isTimeUnit } from '../utils/valueParser';
 import {
   Select,
   SelectContent,
@@ -641,7 +642,9 @@ function AthleteManagement() {
                                       <div className={`font-mono font-semibold ${
                                         record.type === 'pb' ? 'text-blue-600' : 'text-green-600'
                                       }`}>
-                                        {record.value}
+                                        {isTimeUnit(getCategoryUnit(record.categoryId)) 
+                                          ? formatTimeValue(record.value)
+                                          : record.value}
                                         <span className="text-sm font-normal text-gray-500 ml-1">
                                           {getCategoryUnit(record.categoryId)}
                                         </span>
@@ -788,7 +791,9 @@ function AthleteManagement() {
                                   <div className={`font-mono text-xl font-bold mb-1 ${
                                     record.type === 'pb' ? 'text-blue-600' : 'text-green-600'
                                   }`}>
-                                    {record.value}
+                                    {isTimeUnit(getCategoryUnit(record.categoryId)) 
+                                      ? formatTimeValue(record.value)
+                                      : record.value}
                                     <span className="text-sm font-normal text-gray-500 ml-1">
                                       {getCategoryUnit(record.categoryId)}
                                     </span>
