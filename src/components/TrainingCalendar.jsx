@@ -256,14 +256,17 @@ const TrainingCalendar = ({ clubId, clubName }) => {
         return;
       }
 
+      // Auto-mark all unset statuses as absent
+      const finalAttendance = validAttendance.map(attendance => ({
+        athleteId: attendance.athleteId,
+        status: attendance.status || 'absent', // If no status is set, mark as absent
+        notes: ''
+      }));
+
       // Mark attendance for valid athletes only
       await clubService.bulkMarkAttendance(
         sessionId,
-        validAttendance.map(attendance => ({
-          athleteId: attendance.athleteId,
-          status: attendance.status,
-          notes: ''
-        })),
+        finalAttendance,
         user.uid
       );
 
@@ -422,12 +425,11 @@ const TrainingCalendar = ({ clubId, clubName }) => {
     // Use the exact calendar date without any timezone conversion
     const calendarDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), 12, 0, 0);
     
-    // For past training days, check for existing session by looking one day back (timezone fix)
+    // For past training days, check for existing session on the same day
     let existingSession = null;
     if (day.date <= new Date() && day.dayData?.isScheduled) {
       try {
-        const prevDay = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), calendarDate.getDate() - 1);
-        const sessions = await clubService.getTrainingSessionsInRange(clubId, prevDay, prevDay);
+        const sessions = await clubService.getTrainingSessionsInRange(clubId, calendarDate, calendarDate);
         existingSession = sessions.length > 0 ? sessions[0] : null;
       } catch (error) {
         console.error('Error finding existing session:', error);

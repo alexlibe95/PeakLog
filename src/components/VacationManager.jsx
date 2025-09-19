@@ -290,23 +290,25 @@ const VacationManager = ({ clubId, clubName }) => {
   return (
     <Card className="w-full">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-lg">
               <CalendarDays className="h-5 w-5" />
-              Vacation & Cancellation Management
+              <span>Vacation & Cancellation Management</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Manage training cancellations and vacation periods for {clubName}
             </CardDescription>
           </div>
-          <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Schedule Vacation
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center justify-center gap-2 sm:gap-2">
+            <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2 text-sm h-9 px-3 touch-manipulation">
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Schedule Vacation</span>
+                  <span className="sm:hidden">Vacation</span>
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Schedule Vacation Period</DialogTitle>
@@ -316,7 +318,7 @@ const VacationManager = ({ clubId, clubName }) => {
               </DialogHeader>
               
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="start-date">Start Date</Label>
                     <Input
@@ -377,19 +379,24 @@ const VacationManager = ({ clubId, clubName }) => {
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button 
                   variant="outline" 
                   onClick={() => setShowBulkDialog(false)}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleBulkCancellation}>
+                <Button 
+                  onClick={handleBulkCancellation}
+                  className="w-full sm:w-auto"
+                >
                   Schedule Cancellations
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
 

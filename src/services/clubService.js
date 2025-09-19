@@ -1290,14 +1290,14 @@ export const clubService = {
           return false;
         });
         
-        // Find actual session for this date - check previous day for sessions
+        // Find actual session for this date - use exact date matching
         const session = sessions.find(s => {
           const sessionDate = s.date.toDate();
           
           // Force both to same timezone for comparison
           const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
-          const prevDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 1);
-          const matches = sessionDay.getTime() === prevDay.getTime();
+          const currentDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+          const matches = sessionDay.getTime() === currentDay.getTime();
           
           return matches;
         });
