@@ -358,14 +358,14 @@ const Training = () => {
                 ) : (
                   <div className="space-y-3">
                     {personalRecords.slice(0, 5).map((record) => (
-                      <div key={record.id} className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div key={record.id} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
                         <div className="flex-1">
-                          <h4 className="font-medium text-sm">{getCategoryName(record)}</h4>
+                          <h4 className="font-medium text-sm text-amber-900 dark:text-amber-100">{getCategoryName(record)}</h4>
                           <p className="text-xs text-muted-foreground">{formatDate(record.date)}</p>
                         </div>
                         <div className="text-right">
-                          <div className="font-bold text-amber-700">
-                            {isTimeUnit(record.unit) 
+                          <div className="font-bold text-amber-700 dark:text-amber-300">
+                            {isTimeUnit(record.unit)
                               ? formatTimeValue(record.value)
                               : record.value} {record.unit}
                           </div>
@@ -407,9 +407,9 @@ const Training = () => {
                         <div key={goal.id} className="p-3 border rounded-lg">
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium text-sm">{getCategoryName(goal.categoryId)}</h4>
-                            <Badge 
+                            <Badge
                               variant="secondary"
-                              className={`text-xs text-white ${getStatusColor(status)}`}
+                              className={`text-xs ${status === 'upcoming' ? 'text-gray-900' : 'text-white'} ${getStatusColor(status)}`}
                             >
                               {getStatusText(status)}
                             </Badge>

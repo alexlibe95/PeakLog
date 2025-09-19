@@ -56,22 +56,22 @@ function MemberManagement({
   const getRoleIcon = (role) => {
     switch (role) {
       case 'admin':
-        return <Shield className="h-4 w-4 text-blue-600" />;
+        return <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />;
       case 'athlete':
-        return <Users className="h-4 w-4 text-green-600" />;
+        return <Users className="h-4 w-4 text-green-600 dark:text-green-400" />;
       default:
-        return <Users className="h-4 w-4 text-gray-600" />;
+        return <Users className="h-4 w-4 text-gray-600 dark:text-gray-400" />;
     }
   };
 
   const getRoleBadgeColor = (role) => {
     switch (role) {
       case 'admin':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800';
       case 'athlete':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-950 dark:text-gray-200 dark:border-gray-800';
     }
   };
 
@@ -302,14 +302,14 @@ function MemberManagement({
         {pendingInvitations.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-orange-600" />
+              <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
               Pending Invitations ({pendingInvitations.length})
             </h4>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 sm:p-4 space-y-2">
+            <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-3 sm:p-4 space-y-2">
               {pendingInvitations.map((invitation) => (
-                <div key={invitation.id} className="flex items-center justify-between p-2 bg-white rounded border gap-3">
+                <div key={invitation.id} className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Mail className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                    <Mail className="h-4 w-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="font-medium truncate">{invitation.email}</div>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -426,7 +426,7 @@ function MemberManagement({
               {/* Mobile Card View */}
               <div className="sm:hidden space-y-3">
                 {members.map((member) => (
-                  <div key={member.id} className="border rounded-lg p-3">
+                  <div key={member.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="font-medium truncate">{member.email || 'N/A'}</div>

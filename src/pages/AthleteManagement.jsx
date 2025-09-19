@@ -625,14 +625,14 @@ function AthleteManagement() {
                                 });
 
                                 return consolidatedRecords.map((record) => (
-                                  <TableRow key={`${record.type}-${record.id}`} className={record.type === 'pb' ? 'bg-blue-50/30' : 'bg-green-50/30'}>
+                                  <TableRow key={`${record.type}-${record.id}`} className={record.type === 'pb' ? 'bg-blue-50/30 dark:bg-blue-950/20' : 'bg-green-50/30 dark:bg-green-950/20'}>
                                     <TableCell className="truncate max-w-xs">
                                       <div className="flex items-center gap-2">
                                         <span className="font-medium">{getCategoryName(record.categoryId)}</span>
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                                           record.type === 'pb'
-                                            ? 'bg-blue-100 text-blue-700'
-                                            : 'bg-green-100 text-green-700'
+                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200'
+                                            : 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200'
                                         }`}>
                                           {record.type === 'pb' ? 'Test' : 'Manual'}
                                         </span>
@@ -640,12 +640,12 @@ function AthleteManagement() {
                                     </TableCell>
                                   <TableCell>
                                       <div className={`font-mono font-semibold ${
-                                        record.type === 'pb' ? 'text-blue-600' : 'text-green-600'
+                                        record.type === 'pb' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'
                                       }`}>
-                                        {isTimeUnit(getCategoryUnit(record.categoryId)) 
+                                        {isTimeUnit(getCategoryUnit(record.categoryId))
                                           ? formatTimeValue(record.value)
                                           : record.value}
-                                        <span className="text-sm font-normal text-gray-500 ml-1">
+                                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
                                           {getCategoryUnit(record.categoryId)}
                                         </span>
                                       </div>
@@ -771,16 +771,16 @@ function AthleteManagement() {
                             });
 
                             return consolidatedRecords.map((record) => (
-                              <div key={`${record.type}-${record.id}`} className={`border rounded-lg p-4 bg-white shadow-sm mx-1 ${
-                                record.type === 'pb' ? 'border-blue-200 bg-blue-50/30' : 'border-green-200 bg-green-50/30'
+                              <div key={`${record.type}-${record.id}`} className={`border rounded-lg p-4 bg-white dark:bg-gray-900 shadow-sm mx-1 ${
+                                record.type === 'pb' ? 'border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20' : 'border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20'
                               }`}>
                                 {/* Category Title */}
                                 <div className="text-center mb-2">
                                   <h4 className="font-semibold text-base mb-1 truncate">{getCategoryName(record.categoryId)}</h4>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                                     record.type === 'pb'
-                                      ? 'bg-blue-100 text-blue-700'
-                                      : 'bg-green-100 text-green-700'
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200'
+                                      : 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200'
                                   }`}>
                                     {record.type === 'pb' ? 'Test Result' : 'Manual Entry'}
                                   </span>
@@ -789,19 +789,19 @@ function AthleteManagement() {
                                 {/* Performance Value */}
                                 <div className="text-center mb-3">
                                   <div className={`font-mono text-xl font-bold mb-1 ${
-                                    record.type === 'pb' ? 'text-blue-600' : 'text-green-600'
+                                    record.type === 'pb' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'
                                   }`}>
-                                    {isTimeUnit(getCategoryUnit(record.categoryId)) 
+                                    {isTimeUnit(getCategoryUnit(record.categoryId))
                                       ? formatTimeValue(record.value)
                                       : record.value}
-                                    <span className="text-sm font-normal text-gray-500 ml-1">
+                                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
                                       {getCategoryUnit(record.categoryId)}
                                     </span>
                                   </div>
                                   <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                     record.type === 'pb'
-                                      ? 'bg-blue-100 text-blue-700'
-                                      : 'bg-green-100 text-green-700'
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200'
+                                      : 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200'
                                   }`}>
                                     {record.type === 'pb' ? '🏆 Test PB' : '⭐ Personal Best'}
                                   </div>
@@ -809,7 +809,7 @@ function AthleteManagement() {
 
                                 {/* Date and Notes */}
                                 <div className="text-center space-y-1">
-                                  <span className="text-xs text-gray-500 block">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 block">
                                     {record.date ? new Date(record.date).toLocaleDateString('en-US', {
                                       month: 'short',
                                       day: 'numeric',
@@ -817,13 +817,13 @@ function AthleteManagement() {
                                     }) : 'No date'}
                                   </span>
                                   {record.notes && (
-                                    <p className="text-xs text-gray-600 italic truncate px-2">{record.notes}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 italic truncate px-2">{record.notes}</p>
                                   )}
                                 </div>
 
                                                                 {/* Action Buttons for Mobile */}
                                 {record.canEdit && (
-                                  <div className="flex gap-2 pt-3 border-t border-gray-100 mt-3">
+                                  <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700 mt-3">
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -838,7 +838,7 @@ function AthleteManagement() {
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          className="flex-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 h-8"
+                                          className="flex-1 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950 h-8"
                                         >
                                           <Trash2 className="h-3 w-3 mr-1" />
                                           Delete
@@ -997,14 +997,19 @@ function AthleteManagement() {
 
                                 return (
                                   <TableRow key={goal.id} className={
-                                    status === 'achieved' ? 'bg-green-50/30' :
-                                    status === 'overdue' ? 'bg-red-50/30' :
-                                    status === 'on-track' ? 'bg-blue-50/30' : ''
+                                    status === 'achieved' ? 'bg-green-50/30 dark:bg-green-950/20' :
+                                    status === 'overdue' ? 'bg-red-50/30 dark:bg-red-950/20' :
+                                    status === 'on-track' ? 'bg-blue-50/30 dark:bg-blue-950/20' : ''
                                   }>
                                     <TableCell className="truncate max-w-xs">
                                       <div className="flex items-center gap-2">
                                         <span className="font-medium">{getCategoryName(goal.categoryId)}</span>
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          status === 'achieved' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200' :
+                                          status === 'overdue' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200' :
+                                          status === 'on-track' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200' :
+                                          'bg-gray-100 text-gray-700 dark:bg-gray-950 dark:text-gray-200'
+                                        }`}>
                                           {status === 'achieved' ? '✓ Achieved' :
                                            status === 'overdue' ? '⚠ Overdue' :
                                            status === 'on-track' ? '📈 On Track' : '⏳ Pending'}
@@ -1042,24 +1047,24 @@ function AthleteManagement() {
                                     <TableCell>
                                       <div className="space-y-1">
                                         {currentRecord && (
-                                          <div className="w-full bg-gray-200 rounded-full h-2">
+                                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                             <div
                                               className={`h-2 rounded-full transition-all duration-300 ${
-                                                status === 'achieved' ? 'bg-green-500' :
-                                                status === 'overdue' ? 'bg-red-500' :
-                                                'bg-blue-500'
+                                                status === 'achieved' ? 'bg-green-500 dark:bg-green-400' :
+                                                status === 'overdue' ? 'bg-red-500 dark:bg-red-400' :
+                                                'bg-blue-500 dark:bg-blue-400'
                                               }`}
                                               style={{ width: `${progress}%` }}
                                             ></div>
                                           </div>
                                         )}
                                         {currentRecord && (
-                                          <div className="text-xs text-gray-600 text-center mt-1">
+                                          <div className="text-xs text-gray-600 dark:text-gray-300 text-center mt-1">
                                             {Math.round(progress)}% complete
                                           </div>
                                         )}
                                         {goal.notes && (
-                                          <div className="text-xs text-gray-500 italic truncate max-w-xs mt-2">
+                                          <div className="text-xs text-gray-500 dark:text-gray-400 italic truncate max-w-xs mt-2">
                                             {goal.notes}
                                           </div>
                                         )}
@@ -1177,11 +1182,16 @@ function AthleteManagement() {
                             }
 
                             return (
-                              <div key={goal.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm mx-1">
+                              <div key={goal.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900 shadow-sm mx-1">
                                 {/* Category Title */}
                                 <div className="text-center mb-2">
                                   <h4 className="font-semibold text-base mb-1 truncate">{getCategoryName(goal.categoryId)}</h4>
-                                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                    status === 'achieved' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200' :
+                                    status === 'overdue' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200' :
+                                    status === 'on-track' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200' :
+                                    'bg-gray-100 text-gray-700 dark:bg-gray-950 dark:text-gray-200'
+                                  }`}>
                                     {status === 'achieved' ? '🎉 Achieved' :
                                      status === 'overdue' ? '⚠️ Overdue' :
                                      status === 'on-track' ? '📈 On Track' : '⏳ Pending'}
@@ -1190,9 +1200,9 @@ function AthleteManagement() {
 
                                 {/* Target Value */}
                                 <div className="text-center mb-3">
-                                  <div className="font-mono text-xl font-bold mb-1 text-gray-700">
+                                  <div className="font-mono text-xl font-bold mb-1 text-gray-700 dark:text-gray-200">
                                     {goal.targetValue}
-                                    <span className="text-sm font-normal text-gray-500 ml-1">
+                                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
                                       {getCategoryUnit(goal.categoryId)}
                                     </span>
                                   </div>
@@ -1203,27 +1213,27 @@ function AthleteManagement() {
 
                                 {/* Due Date and Notes */}
                                 <div className="text-center space-y-1">
-                                  <div className="text-xs text-gray-500">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
                                     Due: {targetDate.toLocaleDateString('en-US', {
                                       month: 'short',
                                       day: 'numeric',
                                       year: 'numeric'
                                     })}
                                     {daysLeft > 0 && (
-                                      <span className="text-blue-600 font-medium ml-2">
+                                      <span className="text-blue-600 dark:text-blue-400 font-medium ml-2">
                                         • {daysLeft} days left
                                       </span>
                                     )}
                                   </div>
                                   {goal.notes && (
-                                    <p className="text-xs text-gray-600 italic truncate px-2">{goal.notes}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 italic truncate px-2">{goal.notes}</p>
                                   )}
                                 </div>
 
 
 
                                 {/* Action Buttons for Mobile */}
-                                <div className="flex gap-2 pt-3 border-t border-gray-100 mt-3">
+                                <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700 mt-3">
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -1238,7 +1248,7 @@ function AthleteManagement() {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="flex-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 h-8"
+                                        className="flex-1 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950 h-8"
                                       >
                                         <Trash2 className="h-3 w-3 mr-1" />
                                         Delete

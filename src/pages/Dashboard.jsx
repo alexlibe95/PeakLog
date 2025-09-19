@@ -859,17 +859,17 @@ const Dashboard = () => {
         {/* Pending membership notice */}
         {/* Show loading state during initial load */}
         {(memberships || []).length === 0 && dashboardRole !== 'super' && !initialLoadComplete && (
-          <div className="mb-6 p-6 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <div className="mb-6 p-6 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <div className="animate-spin w-6 h-6 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full"></div>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-blue-900">Setting up your account...</h3>
-                <p className="text-blue-700">Checking for club invitations</p>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Setting up your account...</h3>
+                <p className="text-blue-700 dark:text-blue-300">Checking for club invitations</p>
               </div>
             </div>
-            <div className="text-sm text-blue-800">
+            <div className="text-sm text-blue-800 dark:text-blue-200">
               We're processing your club invitations. This should only take a moment.
             </div>
           </div>
@@ -877,22 +877,22 @@ const Dashboard = () => {
 
         {/* Show "not in any club" message only after initial load is complete */}
         {(memberships || []).length === 0 && dashboardRole !== 'super' && initialLoadComplete && (
-          <div className="mb-6 p-6 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <div className="mb-6 p-6 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-blue-900">Welcome to PeakLog!</h3>
-                <p className="text-blue-700">You're not part of any club yet</p>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Welcome to PeakLog!</h3>
+                <p className="text-blue-700 dark:text-blue-300">You're not part of any club yet</p>
               </div>
             </div>
-            <div className="text-sm text-blue-800 mb-4">
+            <div className="text-sm text-blue-800 dark:text-blue-200 mb-4">
               A club administrator needs to invite you to join their team. Once invited, you'll be able to access all training features and team management tools.
             </div>
-            <div className="flex items-center gap-2 text-xs text-blue-600">
+            <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
@@ -967,13 +967,13 @@ const Dashboard = () => {
             {/* Club Message Display */}
             {clubMessage && (
               <Card className={`mb-6 border-2 ${
-                clubMessage.type === 'important' || clubMessage.priority === 'urgent' 
-                  ? 'border-red-300 bg-gradient-to-r from-red-50 to-red-100 shadow-lg' 
+                clubMessage.type === 'important' || clubMessage.priority === 'urgent'
+                  ? 'border-red-300 dark:border-red-700 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 shadow-lg'
                   : clubMessage.priority === 'high'
-                  ? 'border-orange-300 bg-gradient-to-r from-orange-50 to-orange-100'
+                  ? 'border-orange-300 dark:border-orange-700 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900'
                   : clubMessage.type === 'reminder'
-                  ? 'border-yellow-300 bg-gradient-to-r from-yellow-50 to-yellow-100'
-                  : 'border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100'
+                  ? 'border-yellow-300 dark:border-yellow-700 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900'
+                  : 'border-blue-300 dark:border-blue-700 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900'
               }`}>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-base sm:text-lg">
@@ -989,10 +989,10 @@ const Dashboard = () => {
                       <span>Coach Message</span>
                     </div>
                     <Badge className={`text-xs ${
-                      clubMessage.priority === 'urgent' ? 'bg-red-500 text-white' :
-                      clubMessage.priority === 'high' ? 'bg-orange-500 text-white' :
-                      clubMessage.priority === 'normal' ? 'bg-blue-500 text-white' :
-                      'bg-gray-500 text-white'
+                      clubMessage.priority === 'urgent' ? 'bg-red-500 dark:bg-red-600 text-white' :
+                      clubMessage.priority === 'high' ? 'bg-orange-500 dark:bg-orange-600 text-white' :
+                      clubMessage.priority === 'normal' ? 'bg-blue-500 dark:bg-blue-600 text-white' :
+                      'bg-gray-500 dark:bg-gray-600 text-white'
                     }`}>
                       {clubMessage.priority === 'urgent' ? 'URGENT' :
                        clubMessage.priority === 'high' ? 'HIGH' :
@@ -1164,7 +1164,7 @@ const Dashboard = () => {
                               : day.status === 'completed'
                               ? 'bg-gray-50 border-gray-200 opacity-90'
                               : index === 0 && !day.isCancelled
-                              ? 'bg-primary/5 border-primary/20 hover:bg-primary/10 cursor-pointer hover:shadow-md'
+                              ? 'bg-primary/5 dark:bg-primary/10 border-primary/20 dark:border-primary/30 hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer hover:shadow-md'
                               : 'bg-muted/30 hover:bg-muted/50 cursor-pointer hover:shadow-md'
                           }`}
                           onClick={!day.isCancelled ? () => openProgramModal(day) : undefined}
@@ -1371,7 +1371,7 @@ const Dashboard = () => {
             {selectedProgramDay && (
               <div className="space-y-4">
                 {/* Program Header */}
-                <div className="p-4 bg-primary/5 rounded-lg border">
+                <div className="p-4 bg-primary/5 dark:bg-primary/10 rounded-lg border">
                   <h3 className="text-lg font-semibold text-primary mb-2">
                     {selectedProgramDay.program?.name || 'Training Session'}
                   </h3>
@@ -1472,7 +1472,7 @@ const Dashboard = () => {
                 {selectedProgramDay.program?.specialInstructions && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Special Instructions</h4>
-                    <div className="text-sm text-muted-foreground leading-relaxed bg-amber-50 border border-amber-200 rounded p-3">
+                    <div className="text-sm text-muted-foreground leading-relaxed bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-3">
                       ⚠️ {selectedProgramDay.program.specialInstructions}
                     </div>
                   </div>
@@ -1515,7 +1515,7 @@ const Dashboard = () => {
             {currentTrainingSession && (
               <div className="space-y-4">
                 {/* Session Info */}
-                <div className="p-3 sm:p-4 bg-primary/5 rounded-lg border">
+                <div className="p-3 sm:p-4 bg-primary/5 dark:bg-primary/10 rounded-lg border">
                   <h4 className="font-semibold mb-2 truncate">{currentTrainingSession.programName}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
                     <div>
