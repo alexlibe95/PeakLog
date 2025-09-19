@@ -12,6 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { isTimeUnit } from '@/utils/valueParser';
 
 export const testService = {
   // ===== TEST SESSIONS =====
@@ -354,6 +355,14 @@ export const testService = {
    */
   async updateAthletePBIfBetter(athleteId, categoryId, newValue, testId) {
     try {
+      // Get category information to determine unit type
+      const categoryDoc = await getDoc(doc(db, 'performanceCategories', categoryId));
+      if (!categoryDoc.exists()) {
+        throw new Error(`Category ${categoryId} not found`);
+      }
+      const categoryData = categoryDoc.data();
+      const unit = categoryData.unit;
+
       // Get current PB for this athlete and category
       const pbQuery = query(
         collection(db, 'personalRecords'),
@@ -378,11 +387,22 @@ export const testService = {
         await addDoc(collection(db, 'personalRecords'), pbData);
         return { updated: true, created: true, oldValue: null, newValue };
       } else {
-        // Check if new value is better (assuming higher values are better)
+        // Check if new value is better based on unit type
         const currentPB = pbSnapshot.docs[0];
         const currentValue = currentPB.data().value;
 
-        if (newValue > currentValue) {
+        // Determine if new value is better
+        let isBetter = false;
+
+        if (isTimeUnit(unit)) {
+          // For time units: lower values are better (e.g., 1:30 is better than 2:00)
+          isBetter = newValue < currentValue;
+        } else {
+          // For other units: higher values are better (e.g., 100kg is better than 80kg)
+          isBetter = newValue > currentValue;
+        }
+
+        if (isBetter) {
           // Update PB
           await updateDoc(currentPB.ref, {
             value: newValue,
@@ -406,6 +426,14 @@ export const testService = {
    */
   async checkAndUpdateGoals(athleteId, categoryId, testValue, testId) {
     try {
+      // Get category information to determine unit type
+      const categoryDoc = await getDoc(doc(db, 'performanceCategories', categoryId));
+      if (!categoryDoc.exists()) {
+        throw new Error(`Category ${categoryId} not found`);
+      }
+      const categoryData = categoryDoc.data();
+      const unit = categoryData.unit;
+
       const goalsQuery = query(
         collection(db, 'goals'),
         where('athleteId', '==', athleteId),
@@ -420,8 +448,18 @@ export const testService = {
         const goalData = goalDoc.data();
         const targetValue = goalData.targetValue;
 
-        // Check if athlete has reached the goal
-        if (testValue >= targetValue) {
+        // Check if athlete has reached the goal based on unit type
+        let goalAchieved = false;
+
+        if (isTimeUnit(unit)) {
+          // For time units: lower values are better (e.g., testValue <= targetValue)
+          goalAchieved = testValue <= targetValue;
+        } else {
+          // For other units: higher values are better (e.g., testValue >= targetValue)
+          goalAchieved = testValue >= targetValue;
+        }
+
+        if (goalAchieved) {
           updates.push(
             updateDoc(goalDoc.ref, {
               status: 'completed',
@@ -498,7 +536,7 @@ export const testService = {
         const results = await this.getTestResults(testSession.id);
 
         // Get category info
-        const categoryDoc = await getDoc(doc(db, 'clubs', clubId, 'categories', testSession.categoryId));
+        const categoryDoc = await getDoc(doc(db, 'performanceCategories', testSession.categoryId));
         const categoryData = categoryDoc.exists() ? categoryDoc.data() : { name: 'Unknown', unit: '' };
 
         // Enrich results with athlete info
