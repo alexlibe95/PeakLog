@@ -18,7 +18,7 @@ const PeakLogLogo = ({ size = "default", className = "", showText = true, iconOn
     <div className={`flex items-center gap-3 ${className}`}>
       <PeakLogIcon size={currentSize.icon} />
       {showText && (
-        <span className={`font-bold text-slate-800 ${currentSize.text}`}>
+        <span className={`font-bold text-slate-800 dark:text-slate-200 ${currentSize.text}`}>
           PeakLog
         </span>
       )}
