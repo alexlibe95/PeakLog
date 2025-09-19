@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { formatTimeValue, isTimeUnit } from '../utils/valueParser';
+import { formatTimeValue, isTimeUnit, parsePerformanceValue } from '../utils/valueParser';
 import {
   Select,
   SelectContent,
@@ -300,12 +300,18 @@ function AthleteManagement() {
   // Goal management
   const handleCreateGoal = async () => {
     if (!selectedAthlete || !goalForm.categoryId || !goalForm.targetValue || !goalForm.targetDate) return;
-    
+
     setSaving(true);
     try {
+      // Get the selected category to determine the unit
+      const selectedCategoryData = getCategory(goalForm.categoryId);
+
+      // Parse the target value using the proper unit parsing
+      const parsedValue = parsePerformanceValue(goalForm.targetValue.trim(), selectedCategoryData?.unit);
+
       await athletePerformanceService.createGoal(selectedAthlete.id, effectiveClubId, {
         ...goalForm,
-        targetValue: parseFloat(goalForm.targetValue)
+        targetValue: parsedValue
       });
       await loadAthleteData();
       setGoalForm({ categoryId: '', targetValue: '', targetDate: '', notes: '' });
@@ -317,6 +323,7 @@ function AthleteManagement() {
       console.error('Error creating goal:', error);
       toast({
         title: 'Error creating goal',
+        description: error.message || 'Failed to create goal',
         variant: 'destructive'
       });
     } finally {
@@ -326,12 +333,18 @@ function AthleteManagement() {
 
   const handleUpdateGoal = async () => {
     if (!editingGoal || !goalForm.targetValue || !goalForm.targetDate) return;
-    
+
     setSaving(true);
     try {
+      // Get the selected category to determine the unit
+      const selectedCategoryData = getCategory(goalForm.categoryId);
+
+      // Parse the target value using the proper unit parsing
+      const parsedValue = parsePerformanceValue(goalForm.targetValue.trim(), selectedCategoryData?.unit);
+
       await athletePerformanceService.updateGoal(editingGoal.id, {
         ...goalForm,
-        targetValue: parseFloat(goalForm.targetValue)
+        targetValue: parsedValue
       });
       await loadAthleteData();
       setEditingGoal(null);
@@ -344,6 +357,7 @@ function AthleteManagement() {
       console.error('Error updating goal:', error);
       toast({
         title: 'Error updating goal',
+        description: error.message || 'Failed to update goal',
         variant: 'destructive'
       });
     } finally {
@@ -394,7 +408,9 @@ function AthleteManagement() {
       setEditingGoal(goal);
       setGoalForm({
         categoryId: goal.categoryId,
-        targetValue: goal.targetValue.toString(),
+        targetValue: isTimeUnit(getCategoryUnit(goal.categoryId))
+          ? formatTimeValue(goal.targetValue)
+          : goal.targetValue.toString(),
         targetDate: goal.targetDate,
         notes: goal.notes || ''
       });
@@ -413,6 +429,10 @@ function AthleteManagement() {
   const getCategoryUnit = (categoryId) => {
     const category = categories.find(c => c.id === categoryId);
     return category ? category.unit : '';
+  };
+
+  const getCategory = (categoryId) => {
+    return categories.find(c => c.id === categoryId) || null;
   };
 
   // Determine if higher values are better for a category
@@ -1017,13 +1037,17 @@ function AthleteManagement() {
                                       </div>
                                     </TableCell>
                                   <TableCell>
-                                      <div className="space-y-1">
+                                        <div className="space-y-1">
                                         <div className="font-mono font-semibold">
-                                    {goal.targetValue} {getCategoryUnit(goal.categoryId)}
+                                    {isTimeUnit(getCategoryUnit(goal.categoryId))
+                                      ? formatTimeValue(goal.targetValue)
+                                      : goal.targetValue} {getCategoryUnit(goal.categoryId)}
                                         </div>
                                         {currentRecord && (
                                           <div className="text-xs text-gray-500">
-                                            Current: {currentRecord.value} {getCategoryUnit(goal.categoryId)}
+                                            Current: {isTimeUnit(getCategoryUnit(goal.categoryId))
+                                              ? formatTimeValue(currentRecord.value)
+                                              : currentRecord.value} {getCategoryUnit(goal.categoryId)}
                                           </div>
                                         )}
                                       </div>
@@ -1201,7 +1225,9 @@ function AthleteManagement() {
                                 {/* Target Value */}
                                 <div className="text-center mb-3">
                                   <div className="font-mono text-xl font-bold mb-1 text-gray-700 dark:text-gray-200">
-                                    {goal.targetValue}
+                                    {isTimeUnit(getCategoryUnit(goal.categoryId))
+                                      ? formatTimeValue(goal.targetValue)
+                                      : goal.targetValue}
                                     <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
                                       {getCategoryUnit(goal.categoryId)}
                                     </span>
@@ -1293,22 +1319,22 @@ function AthleteManagement() {
         {/* Record Dialog */}
         <Dialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen}>
           <DialogContent className="sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+            <DialogHeader className="pb-6">
               <DialogTitle>
                 {editingRecord ? 'Edit Personal Record' : 'Add Personal Record'}
               </DialogTitle>
               <DialogDescription>
-                {editingRecord 
+                {editingRecord
                   ? 'Update the personal record details'
                   : `Add a new personal record for ${selectedAthlete?.firstName || selectedAthlete?.email || 'athlete'}`
                 }
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
+            <div className="space-y-4 pt-2 pb-4">
+              <div className="space-y-2">
                 <Label htmlFor="recordCategory">Category</Label>
-                <Select 
-                  value={recordForm.categoryId} 
+                <Select
+                  value={recordForm.categoryId}
                   onValueChange={(value) => setRecordForm(prev => ({ ...prev, categoryId: value }))}
                   disabled={editingRecord !== null}
                 >
@@ -1324,18 +1350,24 @@ function AthleteManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="recordValue">Value</Label>
                 <Input
                   id="recordValue"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 100, 4.15"
+                  type={isTimeUnit(getCategoryUnit(recordForm.categoryId)) ? "text" : "number"}
+                  step={isTimeUnit(getCategoryUnit(recordForm.categoryId)) ? undefined : "0.01"}
+                  placeholder={isTimeUnit(getCategoryUnit(recordForm.categoryId)) ? "e.g., 2:30.00, 1:45" : "e.g., 100, 4.15"}
                   value={recordForm.value}
                   onChange={(e) => setRecordForm(prev => ({ ...prev, value: e.target.value }))}
                 />
+                {recordForm.categoryId && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Unit: {getCategoryUnit(recordForm.categoryId) || 'Not selected'}
+                    {isTimeUnit(getCategoryUnit(recordForm.categoryId)) && ' (use format: MM:SS.ms or seconds)'}
+                  </p>
+                )}
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="recordDate">Date</Label>
                 <Input
                   id="recordDate"
@@ -1344,7 +1376,7 @@ function AthleteManagement() {
                   onChange={(e) => setRecordForm(prev => ({ ...prev, date: e.target.value }))}
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="recordNotes">Notes (optional)</Label>
                 <Textarea
                   id="recordNotes"
@@ -1354,11 +1386,11 @@ function AthleteManagement() {
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-3 pt-6">
               <Button variant="outline" onClick={() => setRecordDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={editingRecord ? handleUpdateRecord : handleCreateRecord}
                 disabled={saving || !recordForm.categoryId || !recordForm.value}
               >
@@ -1371,22 +1403,22 @@ function AthleteManagement() {
         {/* Goal Dialog */}
         <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
           <DialogContent className="sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+            <DialogHeader className="pb-6">
               <DialogTitle>
                 {editingGoal ? 'Edit Goal' : 'Add Goal'}
               </DialogTitle>
               <DialogDescription>
-                {editingGoal 
+                {editingGoal
                   ? 'Update the goal details'
                   : `Set a new performance goal for ${selectedAthlete?.firstName || selectedAthlete?.email || 'athlete'}`
                 }
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
+            <div className="space-y-4 pt-2 pb-4">
+              <div className="space-y-2">
                 <Label htmlFor="goalCategory">Category</Label>
-                <Select 
-                  value={goalForm.categoryId} 
+                <Select
+                  value={goalForm.categoryId}
                   onValueChange={(value) => setGoalForm(prev => ({ ...prev, categoryId: value }))}
                   disabled={editingGoal !== null}
                 >
@@ -1402,18 +1434,24 @@ function AthleteManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="goalTarget">Target Value</Label>
                 <Input
                   id="goalTarget"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 120, 3.45"
+                  type={isTimeUnit(getCategoryUnit(goalForm.categoryId)) ? "text" : "number"}
+                  step={isTimeUnit(getCategoryUnit(goalForm.categoryId)) ? undefined : "0.01"}
+                  placeholder={isTimeUnit(getCategoryUnit(goalForm.categoryId)) ? "e.g., 2:30.00, 1:45" : "e.g., 120, 3.45"}
                   value={goalForm.targetValue}
                   onChange={(e) => setGoalForm(prev => ({ ...prev, targetValue: e.target.value }))}
                 />
+                {goalForm.categoryId && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Unit: {getCategoryUnit(goalForm.categoryId) || 'Not selected'}
+                    {isTimeUnit(getCategoryUnit(goalForm.categoryId)) && ' (use format: MM:SS.ms or seconds)'}
+                  </p>
+                )}
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="goalDate">Target Date</Label>
                 <Input
                   id="goalDate"
@@ -1422,7 +1460,7 @@ function AthleteManagement() {
                   onChange={(e) => setGoalForm(prev => ({ ...prev, targetDate: e.target.value }))}
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="goalNotes">Notes (optional)</Label>
                 <Textarea
                   id="goalNotes"
@@ -1432,11 +1470,11 @@ function AthleteManagement() {
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-3 pt-6">
               <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={editingGoal ? handleUpdateGoal : handleCreateGoal}
                 disabled={saving || !goalForm.categoryId || !goalForm.targetValue || !goalForm.targetDate}
               >
