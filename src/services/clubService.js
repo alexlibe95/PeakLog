@@ -706,13 +706,16 @@ export const clubService = {
   async createTrainingSession(sessionData) {
     try {
       const sessionRef = doc(collection(db, 'trainingSessions'));
+      // Ensure date is stored consistently
+      const sessionDate = new Date(sessionData.date.getFullYear(), sessionData.date.getMonth(), sessionData.date.getDate(), 12, 0, 0); // Noon local time
+
       const session = {
         id: sessionRef.id,
         clubId: sessionData.clubId,
         programId: sessionData.programId,
         title: sessionData.title,
         description: sessionData.description || '',
-        date: sessionData.date,
+        date: sessionDate,
         startTime: sessionData.startTime,
         endTime: sessionData.endTime,
         location: sessionData.location || '',
@@ -868,6 +871,8 @@ export const clubService = {
 
   async bulkMarkAttendance(sessionId, attendanceData, coachId) {
     try {
+      console.log('💾 Saving attendance for session:', sessionId, 'with', attendanceData.length, 'records');
+
       const batch = writeBatch(db);
 
       attendanceData.forEach(({ athleteId, status, notes = '' }) => {
@@ -878,13 +883,17 @@ export const clubService = {
           status,
           markedBy: coachId,
           markedAt: new Date(),
+          lastUpdated: new Date(),
+          updatedBy: coachId,
           notes
         };
-        batch.set(attendanceRef, data);
+        // Use merge: true to update existing records instead of creating duplicates
+        batch.set(attendanceRef, data, { merge: true });
+        console.log('💾 Setting attendance for athlete:', athleteId, 'status:', status);
       });
 
       await batch.commit();
-      // console.log removed('✅ Bulk attendance marked for', attendanceData.length, 'athletes');
+      console.log('✅ Bulk attendance saved successfully for', attendanceData.length, 'athletes');
       return true;
     } catch (error) {
       console.error('❌ Error bulk marking attendance:', error);
@@ -894,9 +903,15 @@ export const clubService = {
 
   async getSessionAttendance(sessionId) {
     try {
+      console.log('📖 Fetching attendance for session:', sessionId);
       const attendanceQuery = collection(db, 'trainingSessions', sessionId, 'attendance');
       const attendanceSnap = await getDocs(attendanceQuery);
-      return attendanceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const attendanceData = attendanceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log('📖 Found', attendanceData.length, 'attendance records for session:', sessionId);
+      attendanceData.forEach(record => {
+        console.log('📖 Record:', record.athleteId, 'status:', record.status);
+      });
+      return attendanceData;
     } catch (error) {
       console.error('Error fetching session attendance:', error);
       throw error;
@@ -1183,7 +1198,8 @@ export const clubService = {
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(session => {
           const sessionDate = session.date.toDate();
-          return sessionDate >= start && sessionDate <= end;
+          const isInRange = sessionDate >= start && sessionDate <= end;
+          return isInRange;
         });
 
       return sessionsInRange;
@@ -1236,10 +1252,15 @@ export const clubService = {
       
       // Get actual training sessions
       const sessions = await this.getTrainingSessionsInRange(clubId, startDate, endDate);
-      
-      // Build calendar data
+
+      // Get current club members once for attendance validation
+      const currentMembers = await this.getClubMembersWithDetails(clubId);
+      const activeAthletes = currentMembers.filter(member => member.role === 'athlete');
+      const activeAthleteIds = new Set(activeAthletes.map(member => member.id));
+
+      // Build calendar data - ensure consistent timezone handling
       const calendarData = [];
-      const currentDate = new Date(startDate);
+      const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()); // Local date without time
       
       while (currentDate <= endDate) {
         const dayOfWeek = this._getDayKeyFromIndex(currentDate.getDay());
@@ -1269,46 +1290,60 @@ export const clubService = {
           return false;
         });
         
-        // Find actual session for this date
+        // Find actual session for this date - check previous day for sessions
         const session = sessions.find(s => {
           const sessionDate = s.date.toDate();
-          return sessionDate.toDateString() === currentDate.toDateString();
+          
+          // Force both to same timezone for comparison
+          const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
+          const prevDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 1);
+          const matches = sessionDay.getTime() === prevDay.getTime();
+          
+          return matches;
         });
-        
-        calendarData.push({
-          date: new Date(currentDate),
+
+
+        // For calendar display, just use the session without attendance info to reduce calls
+        let sessionWithAttendance = session;
+
+        const calendarEntry = {
+          date: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 12, 0, 0), // Back to original
           dayOfWeek,
           isScheduled: scheduleForDay?.enabled || false,
           isCancelled,
-          session,
+          session: sessionWithAttendance,
           scheduleInfo: scheduleForDay,
           cancellationInfo: isCancelled ? cancellations.cancellations.find(c => {
             let cancellationDate;
-            
+
             // Handle Firestore Timestamp
             if (c.date && c.date.toDate && typeof c.date.toDate === 'function') {
               cancellationDate = c.date.toDate();
-            } 
+            }
             // Handle regular Date object
             else if (c.date instanceof Date) {
               cancellationDate = c.date;
-            } 
+            }
             // Handle date strings/numbers
             else {
               cancellationDate = new Date(c.date);
             }
-            
+
             // Only compare if we have a valid date
             if (cancellationDate && !isNaN(cancellationDate.getTime())) {
               return cancellationDate.toDateString() === currentDate.toDateString();
             }
             return false;
           }) : null
-        });
-        
+        };
+
+        calendarData.push(calendarEntry);
+
+
         currentDate.setDate(currentDate.getDate() + 1);
       }
       
+
       return calendarData;
     } catch (error) {
       console.error('❌ Error fetching monthly training calendar:', error);

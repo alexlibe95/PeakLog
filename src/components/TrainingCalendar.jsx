@@ -75,7 +75,7 @@ const TrainingCalendar = ({ clubId, clubName }) => {
       const data = await clubService.getMonthlyTrainingCalendar(clubId, year, month);
       setCalendarData(data);
     } catch (error) {
-      console.error('Error loading calendar data:', error);
+      console.error('❌ Error loading calendar data:', error);
       toast({
         title: 'Error loading calendar',
         description: 'Failed to load training calendar data',
@@ -213,12 +213,18 @@ const TrainingCalendar = ({ clubId, clubName }) => {
 
       // If session doesn't exist yet (past session with no attendance marked), create it first
       if (!sessionId) {
+        // Use the exact date from the training session without any conversion
+        const sessionDate = new Date(currentTrainingSession.date.getFullYear(), currentTrainingSession.date.getMonth(), currentTrainingSession.date.getDate(), 12, 0, 0);
+
+        console.log('🎯 Creating session for date:', sessionDate.toISOString(), 'toDateString:', sessionDate.toDateString());
+        console.log('🎯 Dialog date:', currentTrainingSession.date.toISOString(), 'toDateString:', currentTrainingSession.date.toDateString());
+
         const sessionData = {
           clubId: clubId,
           programId: currentTrainingSession.programId || 'general-training',
           title: currentTrainingSession.programName,
           description: `${currentTrainingSession.day} training session`,
-          date: new Date(currentTrainingSession.dateString || currentTrainingSession.date),
+          date: sessionDate,
           startTime: currentTrainingSession.startTime,
           endTime: currentTrainingSession.endTime,
           coachId: user.uid,
@@ -228,6 +234,9 @@ const TrainingCalendar = ({ clubId, clubName }) => {
 
         const createdSession = await clubService.createTrainingSession(sessionData);
         sessionId = createdSession.id;
+
+        console.log('✅ Created session:', createdSession.id, 'for date:', createdSession.date.toDateString());
+        console.log('✅ Firestore stored date:', createdSession.date.toISOString());
       
       toast({
           title: "Training session created",
@@ -290,6 +299,11 @@ const TrainingCalendar = ({ clubId, clubName }) => {
           })
         );
       }
+
+      // Wait a moment for Firestore to be consistent, then refresh calendar data
+      setTimeout(async () => {
+        await loadCalendarData();
+      }, 500);
 
       setShowAttendanceDialog(false);
       setCurrentTrainingSession(null);
@@ -405,23 +419,38 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   };
 
   const handleAttendanceDialog = async (day) => {
-    setCurrentTrainingSession(day.dayData.session || {
+    // Use the exact calendar date without any timezone conversion
+    const calendarDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), 12, 0, 0);
+    
+    // For past training days, check for existing session by looking one day back (timezone fix)
+    let existingSession = null;
+    if (day.date <= new Date() && day.dayData?.isScheduled) {
+      try {
+        const prevDay = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), calendarDate.getDate() - 1);
+        const sessions = await clubService.getTrainingSessionsInRange(clubId, prevDay, prevDay);
+        existingSession = sessions.length > 0 ? sessions[0] : null;
+      } catch (error) {
+        console.error('Error finding existing session:', error);
+      }
+    }
+    
+    setCurrentTrainingSession(existingSession || {
       id: null,
       programName: day.dayData.scheduleInfo?.programName || 'Training Session',
       programId: day.dayData.scheduleInfo?.programId || 'general-training',
       day: day.dayData.dayOfWeek,
       startTime: day.dayData.scheduleInfo?.startTime,
       endTime: day.dayData.scheduleInfo?.endTime,
-      date: day.date,
-      dateString: day.date.toISOString().split('T')[0]
+      date: calendarDate,
+      dateString: calendarDate.toISOString().split('T')[0]
     });
     setShowAttendanceDialog(true);
     setLoadingAthletes(true);
 
     try {
       // Load session attendance
-      if (day.dayData.session) {
-        const attendance = await clubService.getSessionAttendance(day.dayData.session.id);
+      if (existingSession) {
+        const attendance = await clubService.getSessionAttendance(existingSession.id);
 
         // Load current club members to cross-reference
         if (clubMembers.length === 0) {
@@ -496,6 +525,7 @@ const TrainingCalendar = ({ clubId, clubName }) => {
         );
 
         setSessionAttendance(processedAttendance);
+        console.log('✅ Set session attendance with', processedAttendance.length, 'records');
       } else {
         // Load all club members for new session
         if (clubMembers.length === 0) {
@@ -531,10 +561,19 @@ const TrainingCalendar = ({ clubId, clubName }) => {
         );
 
         setSessionAttendance(sessionAttendanceData);
+        console.log('✅ Set session attendance for new session with', sessionAttendanceData.length, 'records');
       }
     } catch (error) {
       console.error('Error loading attendance data:', error);
       setSessionAttendance([]);
+      // Show error in UI
+      setSessionAttendance([{
+        athleteId: 'error',
+        athleteName: '❌ Error loading attendance',
+        status: '',
+        email: '',
+        isRemoved: false
+      }]);
     } finally {
       setLoadingAthletes(false);
     }
@@ -615,14 +654,20 @@ const TrainingCalendar = ({ clubId, clubName }) => {
   startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
   
   const calendarGrid = [];
-  const currentCalendarDate = new Date(startDate);
+  const currentCalendarDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()); // Local date without time
   
   for (let week = 0; week < 6; week++) {
     const weekDays = [];
     for (let day = 0; day < 7; day++) {
-      const dayData = calendarData.find(d => 
-        d.date.toDateString() === currentCalendarDate.toDateString()
-      );
+      const dayData = calendarData.find(d => {
+        // Force both dates to same timezone for comparison
+        const calendarDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), currentCalendarDate.getDate());
+        const dataDay = new Date(d.date.getFullYear(), d.date.getMonth(), d.date.getDate());
+        const matches = calendarDay.getTime() === dataDay.getTime();
+        
+        return matches;
+      });
+
       
       weekDays.push({
         date: new Date(currentCalendarDate),
@@ -699,7 +744,7 @@ const TrainingCalendar = ({ clubId, clubName }) => {
               {/* Calendar Days */}
               {calendarGrid.map((week, weekIdx) =>
                 week.map((day, dayIdx) => {
-                  // Determine color coding based on training status
+                  // Determine color coding based on training status and attendance
                   let dayColorClass = 'bg-white';
                   let textColorClass = 'text-gray-900';
 
@@ -708,9 +753,9 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                       dayColorClass = 'bg-red-100';
                       textColorClass = 'text-red-800';
                     } else if (day.date <= new Date()) {
-                      // Past training day
-                      dayColorClass = 'bg-blue-100';
-                      textColorClass = 'text-blue-800';
+                      // Past training day - show as completed (green)
+                      dayColorClass = 'bg-green-100';
+                      textColorClass = 'text-green-800';
                     } else {
                       // Future training day
                       dayColorClass = 'bg-blue-50';
@@ -759,6 +804,7 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                         {day.dayData?.isCancelled && (
                           <div className="text-xs text-red-500">Cancelled</div>
                         )}
+
                       </div>
 
                       {/* Click overlay for actions */}
@@ -894,12 +940,18 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                     <div className="text-center py-8 text-muted-foreground">
                       <div className="text-4xl mb-2">⏳</div>
                       <p>Loading athletes...</p>
+                      <p className="text-xs text-red-500 mt-2">Session ID: {currentTrainingSession?.id || 'None'}</p>
                     </div>
                   ) : sessionAttendance.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <div className="text-4xl mb-2">👥</div>
                       <p>No athletes found for this session</p>
                       <p className="text-sm">Club members may not have been loaded</p>
+                      <div className="mt-2 text-xs">
+                        <p className="text-blue-600">Session ID: {currentTrainingSession?.id || 'None'}</p>
+                        <p className="text-green-600">Club Members: {clubMembers.length}</p>
+                        <p className="text-orange-600">Has Session: {day.dayData?.session ? 'Yes' : 'No'}</p>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
