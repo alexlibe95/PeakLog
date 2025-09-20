@@ -26,19 +26,19 @@ const AdminMessageManager = ({ clubId }) => {
   const { toast } = useToast();
 
   const messageTypes = [
-    { value: 'general', label: 'General Announcement', icon: '📢', color: 'bg-blue-50 border-blue-200 text-blue-800' },
-    { value: 'reminder', label: 'Training Reminder', icon: '⏰', color: 'bg-orange-50 border-orange-200 text-orange-800' },
-    { value: 'equipment', label: 'Equipment Needed', icon: '🎒', color: 'bg-purple-50 border-purple-200 text-purple-800' },
-    { value: 'schedule', label: 'Schedule Change', icon: '📅', color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
-    { value: 'important', label: 'Important Notice', icon: '❗', color: 'bg-red-50 border-red-200 text-red-800' },
-    { value: 'motivation', label: 'Motivation', icon: '💪', color: 'bg-green-50 border-green-200 text-green-800' }
+    { value: 'general', label: 'General Announcement', icon: '📢', color: 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200' },
+    { value: 'reminder', label: 'Training Reminder', icon: '⏰', color: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200' },
+    { value: 'equipment', label: 'Equipment Needed', icon: '🎒', color: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200' },
+    { value: 'schedule', label: 'Schedule Change', icon: '📅', color: 'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200' },
+    { value: 'important', label: 'Important Notice', icon: '❗', color: 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' },
+    { value: 'motivation', label: 'Motivation', icon: '💪', color: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' }
   ];
 
   const priorityLevels = [
-    { value: 'low', label: 'Low Priority', color: 'bg-gray-100 text-gray-800' },
-    { value: 'normal', label: 'Normal', color: 'bg-blue-100 text-blue-800' },
-    { value: 'high', label: 'High Priority', color: 'bg-orange-100 text-orange-800' },
-    { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-800' }
+    { value: 'low', label: 'Low Priority', color: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200' },
+    { value: 'normal', label: 'Normal', color: 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200' },
+    { value: 'high', label: 'High Priority', color: 'bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-200' },
+    { value: 'urgent', label: 'Urgent', color: 'bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200' }
   ];
 
   const loadCurrentMessage = useCallback(async () => {
@@ -235,7 +235,7 @@ const AdminMessageManager = ({ clubId }) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                        className="flex items-center gap-1 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                       >
                         <Trash2 className="w-3 h-3" />
                         Remove
@@ -400,9 +400,9 @@ const AdminMessageManager = ({ clubId }) => {
           </div>
 
           {/* Help Text */}
-          <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-blue-800">
+          <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-800 dark:text-blue-200">
               <p className="font-medium mb-1">Message Tips:</p>
               <ul className="space-y-1 text-xs">
                 <li>• Messages appear prominently on athletes' dashboards</li>

@@ -727,8 +727,8 @@ const TrainingCalendar = ({ clubId, clubName }) => {
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
-              <p className="text-sm text-gray-500">Loading calendar...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Loading calendar...</p>
             </div>
           </div>
         ) : (
@@ -737,7 +737,7 @@ const TrainingCalendar = ({ clubId, clubName }) => {
             <div className="grid grid-cols-7 gap-0.5 sm:gap-1 overflow-x-auto">
               {/* Header */}
               {weekDays.map(day => (
-                <div key={day} className="p-1 sm:p-2 text-center font-medium text-xs sm:text-sm text-gray-500">
+                <div key={day} className="p-1 sm:p-2 text-center font-medium text-xs sm:text-sm text-muted-foreground">
                   <span className="hidden sm:inline">{day}</span>
                   <span className="sm:hidden">{day.substring(0, 1)}</span>
                 </div>
@@ -747,25 +747,25 @@ const TrainingCalendar = ({ clubId, clubName }) => {
               {calendarGrid.map((week, weekIdx) =>
                 week.map((day, dayIdx) => {
                   // Determine color coding based on training status and attendance
-                  let dayColorClass = 'bg-white';
-                  let textColorClass = 'text-gray-900';
+                  let dayColorClass = 'bg-background';
+                  let textColorClass = 'text-foreground';
 
                   if (day.dayData?.isScheduled) {
                     if (day.dayData.isCancelled) {
-                      dayColorClass = 'bg-red-100';
-                      textColorClass = 'text-red-800';
+                      dayColorClass = 'bg-red-100 dark:bg-red-950';
+                      textColorClass = 'text-red-800 dark:text-red-200';
                     } else if (day.date <= new Date()) {
                       // Past training day - show as completed (green)
-                      dayColorClass = 'bg-green-100';
-                      textColorClass = 'text-green-800';
+                      dayColorClass = 'bg-green-100 dark:bg-green-950';
+                      textColorClass = 'text-green-800 dark:text-green-200';
                     } else {
                       // Future training day
-                      dayColorClass = 'bg-blue-50';
-                      textColorClass = 'text-blue-700';
+                      dayColorClass = 'bg-blue-50 dark:bg-blue-950';
+                      textColorClass = 'text-blue-700 dark:text-blue-200';
                     }
                   } else if (!day.isCurrentMonth) {
-                    dayColorClass = 'bg-gray-50';
-                    textColorClass = 'text-gray-400';
+                    dayColorClass = 'bg-muted';
+                    textColorClass = 'text-muted-foreground';
                   }
 
                   return (
@@ -794,17 +794,17 @@ const TrainingCalendar = ({ clubId, clubName }) => {
 
                         {day.dayData?.isScheduled && !day.dayData.isCancelled && (
                           <>
-                            <div className="text-xs text-gray-600">
+                            <div className="text-xs text-muted-foreground">
                               {formatTime(day.dayData.scheduleInfo?.startTime)}
                               </div>
-                            <div className="text-xs text-gray-600">
+                            <div className="text-xs text-muted-foreground">
                               {formatTime(day.dayData.scheduleInfo?.endTime)}
                           </div>
                           </>
                         )}
 
                         {day.dayData?.isCancelled && (
-                          <div className="text-xs text-red-500">Cancelled</div>
+                          <div className="text-xs text-red-500 dark:text-red-400">Cancelled</div>
                         )}
 
                       </div>
@@ -942,7 +942,7 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                     <div className="text-center py-8 text-muted-foreground">
                       <div className="text-4xl mb-2">⏳</div>
                       <p>Loading athletes...</p>
-                      <p className="text-xs text-red-500 mt-2">Session ID: {currentTrainingSession?.id || 'None'}</p>
+                      <p className="text-xs text-red-500 dark:text-red-400 mt-2">Session ID: {currentTrainingSession?.id || 'None'}</p>
                     </div>
                   ) : sessionAttendance.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
@@ -950,9 +950,9 @@ const TrainingCalendar = ({ clubId, clubName }) => {
                       <p>No athletes found for this session</p>
                       <p className="text-sm">Club members may not have been loaded</p>
                       <div className="mt-2 text-xs">
-                        <p className="text-blue-600">Session ID: {currentTrainingSession?.id || 'None'}</p>
-                        <p className="text-green-600">Club Members: {clubMembers.length}</p>
-                        <p className="text-orange-600">Has Session: {day.dayData?.session ? 'Yes' : 'No'}</p>
+                        <p className="text-blue-600 dark:text-blue-400">Session ID: {currentTrainingSession?.id || 'None'}</p>
+                        <p className="text-green-600 dark:text-green-400">Club Members: {clubMembers.length}</p>
+                        <p className="text-orange-600 dark:text-orange-400">Has Session: {day.dayData?.session ? 'Yes' : 'No'}</p>
                       </div>
                     </div>
                   ) : (
