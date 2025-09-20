@@ -1280,8 +1280,8 @@ const Dashboard = () => {
             <CardContent>
               {nextTrainingSession ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div className="flex-1">
                       <h4 className="font-semibold">{nextTrainingSession.programName}</h4>
                       <p className="text-sm text-muted-foreground">
                         {nextTrainingSession.day} - {formatTime(nextTrainingSession.startTime)} to {formatTime(nextTrainingSession.endTime)}
@@ -1293,7 +1293,7 @@ const Dashboard = () => {
 
                     <Button
                       onClick={() => openAttendanceDialog(nextTrainingSession)}
-                      className="bg-primary hover:bg-primary/90"
+                      className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
                       disabled={nextTrainingSession.daysUntil !== 0}
                     >
                       {nextTrainingSession.daysUntil === 0 ? 'Mark Attendance' : 'Not Today'}
