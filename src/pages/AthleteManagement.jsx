@@ -516,7 +516,7 @@ function AthleteManagement() {
                         key={athlete.id}
                         variant={selectedAthlete?.id === athlete.id ? "default" : "outline"}
                         className="justify-start h-auto p-3 sm:p-4 w-full text-left"
-                        onClick={() => setSelectedAthlete(athlete)}
+                        onClick={() => setSelectedAthlete(selectedAthlete?.id === athlete.id ? null : athlete)}
                       >
                         <div className="text-left min-w-0 w-full">
                           <div className="font-medium text-sm sm:text-base truncate">
