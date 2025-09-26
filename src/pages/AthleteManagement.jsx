@@ -48,6 +48,7 @@ import { useToast } from '@/components/ui/toast-context.jsx';
 import { clubService } from '@/services/clubService';
 import { performanceCategoryService } from '@/services/performanceCategoryService';
 import { athletePerformanceService } from '@/services/athletePerformanceService';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Shield, Users, Plus, Edit, Trash2, Target, Trophy, Calendar } from 'lucide-react';
 
 // Static mapping of category types to value comparison logic
@@ -84,6 +85,10 @@ function AthleteManagement() {
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
 
+  // All athletes attendance data for the chart
+  const [allAthletesAttendance, setAllAthletesAttendance] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+
   // Dialog states
 
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
@@ -108,6 +113,15 @@ function AthleteManagement() {
   };
 
   const effectiveClubId = getEffectiveClubId();
+
+  // Get current club name
+  const getCurrentClubName = () => {
+    if (adminMemberships.length === 1) return adminMemberships[0].clubName;
+    const currentMembership = adminMemberships.find(m => m.clubId === effectiveClubId);
+    return currentMembership?.clubName || 'Unknown Club';
+  };
+
+  const currentClubName = getCurrentClubName();
 
   // Load categories
   const loadCategories = async () => {
@@ -142,6 +156,13 @@ function AthleteManagement() {
       loadAthleteData();
     }
   }, [selectedAthlete, effectiveClubId]);
+
+  // Load all athletes attendance data when athletes change
+  useEffect(() => {
+    if (athletes.length > 0 && effectiveClubId) {
+      loadAllAthletesAttendance();
+    }
+  }, [athletes, effectiveClubId]);
 
   const loadAthletes = async () => {
     if (!effectiveClubId) return;
@@ -197,7 +218,7 @@ function AthleteManagement() {
 
   const loadAthleteData = async () => {
     if (!selectedAthlete || !effectiveClubId) return;
-    
+
     try {
       const [records, goals] = await Promise.all([
         athletePerformanceService.getAthleteRecords(selectedAthlete.id, effectiveClubId),
@@ -214,6 +235,47 @@ function AthleteManagement() {
         title: 'Error loading athlete performance data',
         variant: 'destructive'
       });
+    }
+  };
+
+  const loadAllAthletesAttendance = async () => {
+    if (!effectiveClubId || athletes.length === 0) return;
+
+    setAttendanceLoading(true);
+    try {
+      // Get all athlete IDs
+      const athleteIds = athletes.map(athlete => athlete.id);
+
+      // Get attendance stats for all athletes in one optimized call
+      const allStats = await athletePerformanceService.getAllAthletesAttendanceStats(athleteIds, effectiveClubId);
+
+      // Convert to chart data format
+      const attendanceData = athletes.map(athlete => {
+        const stats = allStats[athlete.id] || {
+          attendanceRate: 0,
+          sessionsCompleted: 0,
+          totalSessions: 0
+        };
+
+        return {
+          name: athlete.firstName && athlete.lastName
+            ? `${athlete.firstName} ${athlete.lastName}`
+            : athlete.email.split('@')[0], // Use email prefix if no name
+          attendanceRate: stats.attendanceRate || 0,
+          sessionsCompleted: stats.sessionsCompleted || 0,
+          totalSessions: stats.totalSessions || 0
+        };
+      });
+
+      setAllAthletesAttendance(attendanceData);
+    } catch (error) {
+      console.error('Error loading all athletes attendance:', error);
+      toast({
+        title: "Error loading attendance data",
+        variant: "destructive",
+      });
+    } finally {
+      setAttendanceLoading(false);
     }
   };
 
@@ -488,7 +550,7 @@ function AthleteManagement() {
         </div>
           </div>
 
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="mx-auto space-y-6">
             {/* Athletes List */}
             <Card>
               <CardHeader>
@@ -1311,6 +1373,72 @@ function AthleteManagement() {
             )}
           </div>
         </main>
+
+        {/* All Athletes Attendance Chart */}
+        {allAthletesAttendance.length > 0 && (
+          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart className="h-5 w-5" />
+                  Team Attendance Overview
+                </CardTitle>
+                <CardDescription>
+                  Attendance rates for all athletes in {currentClubName}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {attendanceLoading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading attendance data...</span>
+                  </div>
+                ) : (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={allAthletesAttendance} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="name"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          fontSize={12}
+                        />
+                        <YAxis
+                          label={{ value: 'Attendance Rate (%)', angle: -90, position: 'insideLeft' }}
+                          domain={[0, 100]}
+                        />
+                        <Tooltip
+                          formatter={(value, name, props) => {
+                            const data = props.payload;
+                            const completed = data.sessionsCompleted || 0;
+                            const total = data.totalSessions || 0;
+                            return [
+                              <div className="text-center">
+                                <div className="font-semibold">{value}%</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {completed} of {total} sessions
+                                </div>
+                              </div>,
+                              'Attendance Rate'
+                            ];
+                          }}
+                          labelFormatter={(label) => label}
+                        />
+                        <Bar
+                          dataKey="attendanceRate"
+                          fill="#3b82f6"
+                          name="Attendance Rate"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Dialogs */}
         

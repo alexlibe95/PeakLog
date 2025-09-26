@@ -8,6 +8,8 @@ import {
   updateDoc,
   where,
   writeBatch,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -555,5 +557,121 @@ export const athletePerformanceService = {
       console.error('❌ Error deleting category performance data:', error);
       throw error;
     }
+  },
+
+  // Get attendance statistics for multiple athletes (optimized)
+  async getAllAthletesAttendanceStats(athleteIds, clubId) {
+    try {
+      if (!athleteIds.length) return {};
+
+      // Get past training sessions for this club (only sessions that have occurred)
+      const now = new Date();
+      const sessionsQuery = query(
+        collection(db, 'trainingSessions'),
+        where('clubId', '==', clubId),
+        where('date', '<', now), // Only past sessions
+        orderBy('date', 'desc'),
+        limit(100)
+      );
+      const sessionsSnap = await getDocs(sessionsQuery);
+
+      // Get all attendance records for all sessions in parallel
+      // This reduces from N*M queries to N+1 queries (1 for sessions + N for attendance)
+      const attendancePromises = sessionsSnap.docs.map(async (sessionDoc) => {
+        try {
+          const sessionId = sessionDoc.id;
+          const attendanceSnap = await getDocs(collection(db, 'trainingSessions', sessionId, 'attendance'));
+          return { sessionId, attendance: attendanceSnap.docs.map(doc => ({ athleteId: doc.data().athleteId, ...doc.data() })) };
+        } catch (error) {
+          console.error(`Error fetching attendance for session ${sessionDoc.id}:`, error);
+          return { sessionId: sessionDoc.id, attendance: [] };
+        }
+      });
+
+      const attendanceResults = await Promise.all(attendancePromises);
+
+      // Group attendance by athlete
+      const athleteAttendanceMap = {};
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Initialize athlete stats
+      athleteIds.forEach(athleteId => {
+        athleteAttendanceMap[athleteId] = {
+          presentCount: 0,
+          lateCount: 0,
+          absentCount: 0,
+          currentMonthSessions: 0
+        };
+      });
+
+      // Process each session's attendance
+      sessionsSnap.docs.forEach((sessionDoc, index) => {
+        const sessionData = sessionDoc.data();
+        const sessionDate = sessionData.date?.toDate ? sessionData.date.toDate() : new Date(sessionData.date);
+        const sessionId = sessionDoc.id;
+        const sessionAttendance = attendanceResults[index]?.attendance || [];
+
+        // Count sessions in current month (for all athletes)
+        const isCurrentMonth = sessionDate >= currentMonthStart;
+
+        // Process each athlete's attendance for this session
+        sessionAttendance.forEach(attendance => {
+          const athleteId = attendance.athleteId;
+          if (athleteIds.includes(athleteId) && athleteAttendanceMap[athleteId]) {
+            if (isCurrentMonth) {
+              athleteAttendanceMap[athleteId].currentMonthSessions++;
+            }
+
+            switch (attendance.status) {
+              case 'present':
+                athleteAttendanceMap[athleteId].presentCount++;
+                break;
+              case 'late':
+                athleteAttendanceMap[athleteId].lateCount++;
+                break;
+              case 'absent':
+                athleteAttendanceMap[athleteId].absentCount++;
+                break;
+            }
+          }
+        });
+      });
+
+      // Convert to the expected format
+      const athleteStats = {};
+      Object.entries(athleteAttendanceMap).forEach(([athleteId, stats]) => {
+        const totalMarkedSessions = stats.presentCount + stats.lateCount + stats.absentCount;
+        const attendanceRate = totalMarkedSessions > 0 ? Math.round(((stats.presentCount + stats.lateCount) / totalMarkedSessions) * 100) : 0;
+
+        athleteStats[athleteId] = {
+          attendanceRate,
+          sessionsCompleted: stats.presentCount + stats.lateCount,
+          totalSessions: totalMarkedSessions,
+          currentMonthSessions: stats.currentMonthSessions,
+          presentCount: stats.presentCount,
+          lateCount: stats.lateCount,
+          absentCount: stats.absentCount
+        };
+      });
+
+      return athleteStats;
+    } catch (error) {
+      console.error('Error fetching all athletes attendance stats:', error);
+      throw error;
+    }
+  },
+
+  // Get attendance statistics for a single athlete (legacy method)
+  async getAthleteAttendanceStats(athleteId, clubId) {
+    const stats = await this.getAllAthletesAttendanceStats([athleteId], clubId);
+    return stats[athleteId] || {
+      attendanceRate: 0,
+      sessionsCompleted: 0,
+      totalSessions: 0,
+      currentMonthSessions: 0,
+      presentCount: 0,
+      lateCount: 0,
+      absentCount: 0
+    };
   }
 };
