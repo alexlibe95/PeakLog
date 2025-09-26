@@ -36,8 +36,7 @@ const Dashboard = () => {
     currentClubId,
     currentRole,
     getCurrentMembership,
-    memberships,
-    loading: authLoading
+    memberships
   } = useAuth();
 
   const { toast } = useToast();
@@ -745,23 +744,6 @@ const Dashboard = () => {
 
 
 
-  // Show loading screen while auth is loading
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-lg font-medium">Loading...</p>
-          <p className="text-sm text-muted-foreground mt-2">Authenticating...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated
-  if (!user) {
-    return null; // AuthContext will handle the redirect
-  }
 
   return (
     <div className="min-h-screen bg-background">
