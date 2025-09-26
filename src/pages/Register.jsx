@@ -12,6 +12,8 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,7 +26,12 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(email, password, { role: 'athlete' });
+      const profileData = {
+        role: 'athlete',
+        ...(firstName.trim() && { firstName: firstName.trim() }),
+        ...(lastName.trim() && { lastName: lastName.trim() })
+      };
+      await register(email, password, profileData);
       navigate('/dashboard');
     } catch (e) {
       console.error('Register failed', e);
@@ -48,6 +55,14 @@ export default function Register() {
                 {error}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input id="firstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={loading} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input id="lastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={loading} />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} />

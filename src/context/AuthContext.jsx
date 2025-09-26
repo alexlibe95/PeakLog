@@ -109,9 +109,11 @@ export const AuthProvider = ({ children }) => {
             lastName: profile?.lastName
           });
 
-          if (userMemberships.length === 0 && isMounted) {
-            console.log('✅ Condition met, checking for pending assignments for email:', firebaseUser.email);
+          // Always check for pending assignments for new users
+          if (isMounted) {
+            console.log('✅ Checking for pending assignments for email:', firebaseUser.email);
             console.log('📧 Firebase auth email:', firebaseUser.email);
+            console.log('📋 User memberships count:', userMemberships.length);
 
             // Add a small delay to ensure authentication is fully established
             setTimeout(async () => {
@@ -347,10 +349,8 @@ export const AuthProvider = ({ children }) => {
       console.log('📋 Profile data:', profile);
       console.log('📋 User memberships:', userMemberships);
 
-      // Check if we should process pending assignments
-      // Since new users start with 'athlete' role, we only check for empty memberships
-      if (userMemberships.length === 0) {
-        console.log('✅ Processing pending assignments for user');
+      // Always check for pending assignments for all users
+      console.log('✅ Processing pending assignments for user');
 
         // Check for pending assignments across all clubs
         const clubsSnap = await getDocs(collection(db, 'clubs'));
@@ -396,21 +396,21 @@ export const AuthProvider = ({ children }) => {
             console.log('👤 Updating user profile for:', firebaseUser.uid);
             console.log('📊 Current profile role:', profile.role, 'New membership role:', role);
 
-                  // Handle role promotion for new memberships
-                  let newGlobalRole = profile.role;
-                  if (profile.role === 'athlete' && role === 'admin') {
-                    // Promote athlete to admin when joining as admin
-                    newGlobalRole = 'admin';
-                  } else if (profile.role === 'athlete' && role === 'super') {
-                    // Promote athlete to super when joining as super
-                    newGlobalRole = 'super';
-                  } else if (profile.role === 'admin' && role === 'super') {
-                    // Promote admin to super when joining as super
-                    newGlobalRole = 'super';
-                  }
-                  // Keep current role if it's higher privilege
+            // Handle role promotion for new memberships
+            let newGlobalRole = profile.role;
+            if (profile.role === 'athlete' && role === 'admin') {
+              // Promote athlete to admin when joining as admin
+              newGlobalRole = 'admin';
+            } else if (profile.role === 'athlete' && role === 'super') {
+              // Promote athlete to super when joining as super
+              newGlobalRole = 'super';
+            } else if (profile.role === 'admin' && role === 'super') {
+              // Promote admin to super when joining as super
+              newGlobalRole = 'super';
+            }
+            // Keep current role if it's higher privilege
 
-                  console.log('🔄 Global role update:', profile.role, '->', newGlobalRole, '(club role:', role, ')');
+            console.log('🔄 Global role update:', profile.role, '->', newGlobalRole, '(club role:', role, ')');
 
             const updateData = {
               memberships: arrayUnion({
@@ -474,9 +474,6 @@ export const AuthProvider = ({ children }) => {
             continue;
           }
         }
-      } else {
-        console.log('❌ User already has memberships or is not pending, skipping assignment check');
-      }
     } catch (error) {
       console.error('❌ Error in manual pending assignment check:', error);
     }
