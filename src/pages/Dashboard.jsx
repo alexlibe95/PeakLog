@@ -36,7 +36,8 @@ const Dashboard = () => {
     currentClubId,
     currentRole,
     getCurrentMembership,
-    memberships
+    memberships,
+    loading: authLoading
   } = useAuth();
 
   const { toast } = useToast();
@@ -417,32 +418,28 @@ const Dashboard = () => {
     try {
       setAthleteAttendanceStats(prev => ({ ...prev, loading: true }));
 
-      // Get all training sessions for this club
+      // Get past training sessions for this club (only sessions that have occurred)
+      // Only count sessions that are either from schedule or have attendance records
+      const now = new Date();
       const sessionsQuery = query(
         collection(db, 'trainingSessions'),
         where('clubId', '==', clubId),
+        where('date', '<', now), // Only past sessions
         orderBy('date', 'desc'),
-        limit(50) // Get last 50 sessions for stats
+        limit(100)
       );
       const sessionsSnap = await getDocs(sessionsQuery);
 
       let presentCount = 0, lateCount = 0, absentCount = 0;
-      
-      // Calculate current month sessions
-      const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       let currentMonthSessions = 0;
 
       for (const sessionDoc of sessionsSnap.docs) {
         const sessionData = sessionDoc.data();
         const sessionDate = sessionData.date?.toDate ? sessionData.date.toDate() : new Date(sessionData.date);
-        
-        // Count sessions in current month
-        if (sessionDate >= currentMonthStart) {
-          currentMonthSessions++;
-        }
 
-        // Get attendance for this athlete in this session
+        // Only count sessions that have attendance records for this athlete
+        // This ensures we only count sessions where the athlete was actually expected to attend
         const attendanceQuery = query(
           collection(db, 'trainingSessions', sessionDoc.id, 'attendance'),
           where('athleteId', '==', athleteId)
@@ -450,6 +447,11 @@ const Dashboard = () => {
         const attendanceSnap = await getDocs(attendanceQuery);
 
         if (!attendanceSnap.empty) {
+          // Count sessions in current month
+          if (sessionDate >= currentMonthStart) {
+            currentMonthSessions++;
+          }
+
           const attendance = attendanceSnap.docs[0].data();
 
           // Count statistics
@@ -463,11 +465,6 @@ const Dashboard = () => {
             case 'absent':
               absentCount++;
               break;
-          }
-        } else {
-          // If no attendance record found, assume absent for past sessions
-          if (sessionDate < now) {
-            absentCount++;
           }
         }
       }
@@ -747,6 +744,24 @@ const Dashboard = () => {
 
 
 
+
+  // Show loading screen while auth is loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg font-medium">Loading...</p>
+          <p className="text-sm text-muted-foreground mt-2">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    return null; // AuthContext will handle the redirect
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -1249,7 +1264,13 @@ const Dashboard = () => {
                               {day.isCancelled ? 'Cancelled' :
                                day.status === 'in-progress' ? '🔥 Live' :
                                day.status === 'completed' ? '✅ Done' :
-                               index === 0 ? 'Next' : `+${index + 1} days`}
+                               (() => {
+                                 const today = new Date();
+                                 const trainingDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate());
+                                 const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                 const daysDiff = Math.ceil((trainingDate - todayDate) / (1000 * 60 * 60 * 24));
+                                 return daysDiff === 0 ? 'Today' : daysDiff === 1 ? 'Tomorrow' : `+${daysDiff} days`;
+                               })()}
                             </Badge>
                           </div>
                         </div>
