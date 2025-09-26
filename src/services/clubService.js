@@ -439,7 +439,6 @@ export const clubService = {
       };
 
       await setDoc(scheduleRef, schedule);
-      // console.log removed('✅ Weekly schedule saved successfully');
       return schedule;
     } catch (error) {
       console.error('❌ Error saving weekly schedule:', error);
@@ -543,7 +542,7 @@ export const clubService = {
 
       // Generate schedule-based days
       while (scheduleDaysFound < limitCount && enabledDays.length > 0) {
-        const currentDayIndex = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const currentDayIndex = currentDate.getDay();
 
         // Check if current day matches any enabled day
         const matchingDay = enabledDays.find(day => day.dayIndex === currentDayIndex);
@@ -561,7 +560,7 @@ export const clubService = {
               const programs = await this.getTrainingPrograms(clubId);
               program = programs.find(p => p.id === matchingDay.programId);
             } catch (error) {
-              console.error('❌ Error fetching program for day:', error);
+              console.error('Error fetching program for day:', error);
             }
           }
 
@@ -1255,8 +1254,6 @@ export const clubService = {
 
       // Get current club members once for attendance validation
       const currentMembers = await this.getClubMembersWithDetails(clubId);
-      const activeAthletes = currentMembers.filter(member => member.role === 'athlete');
-      const activeAthleteIds = new Set(activeAthletes.map(member => member.id));
 
       // Build calendar data - ensure consistent timezone handling
       const calendarData = [];

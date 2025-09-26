@@ -323,6 +323,9 @@ const TrainingManagement = () => {
         [field]: value
       }
     }));
+
+    // Debug log to see what's being saved
+    console.log('🔍 Schedule change:', { day, field, value });
   };
 
   const handleScheduleSubmit = async () => {

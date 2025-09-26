@@ -1115,6 +1115,29 @@ const Dashboard = () => {
                           {nextTrainingSession.program.description}
                         </p>
                       )}
+
+                      {/* Additional Program Details */}
+                      <div className="space-y-3 mb-4">
+                        {nextTrainingSession.program?.duration && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">⏱️ Duration:</span>
+                            <span className="font-medium">{nextTrainingSession.program.duration}</span>
+                          </div>
+                        )}
+                        {nextTrainingSession.program?.equipment && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">🏋️ Equipment:</span>
+                            <span className="font-medium">{nextTrainingSession.program.equipment}</span>
+                          </div>
+                        )}
+                        {nextTrainingSession.program?.objectives && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">🎯 Objectives:</span>
+                            <span className="font-medium">{nextTrainingSession.program.objectives}</span>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                         <Badge variant="outline" className="bg-primary/10">
                           📅 {nextTrainingSession.day.charAt(0).toUpperCase() + nextTrainingSession.day.slice(1)}
@@ -1301,26 +1324,49 @@ const Dashboard = () => {
             <CardContent>
               {nextTrainingSession ? (
                 <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-muted/50 rounded-lg">
-                    <div className="flex-1">
-                      <h4 className="font-semibold">{nextTrainingSession.programName}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {nextTrainingSession.day} - {formatTime(nextTrainingSession.startTime)} to {formatTime(nextTrainingSession.endTime)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {nextTrainingSession.daysUntil === 0 ? 'Today' : `In ${nextTrainingSession.daysUntil} days`}
-                      </p>
-                    </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-muted/50 rounded-lg">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-lg">{nextTrainingSession.programName}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {nextTrainingSession.day} - {formatTime(nextTrainingSession.startTime)} to {formatTime(nextTrainingSession.endTime)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {nextTrainingSession.daysUntil === 0 ? 'Today' : `In ${nextTrainingSession.daysUntil} days`}
+                        </p>
 
-                    <Button
-                      onClick={() => openAttendanceDialog(nextTrainingSession)}
-                      className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
-                      disabled={nextTrainingSession.daysUntil !== 0}
-                    >
-                      {nextTrainingSession.daysUntil === 0 ? 'Mark Attendance' : 'Not Today'}
-                    </Button>
+                        {/* Additional Program Details in Attendance Dialog */}
+                        <div className="mt-3 space-y-2">
+                          {nextTrainingSession.program?.duration && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground">⏱️ Duration:</span>
+                              <span className="font-medium">{nextTrainingSession.program.duration}</span>
+                            </div>
+                          )}
+                          {nextTrainingSession.program?.equipment && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground">🏋️ Equipment:</span>
+                              <span className="font-medium">{nextTrainingSession.program.equipment}</span>
+                            </div>
+                          )}
+                          {nextTrainingSession.program?.objectives && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground">🎯 Objectives:</span>
+                              <span className="font-medium">{nextTrainingSession.program.objectives}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
+                  <Button
+                    onClick={() => openAttendanceDialog(nextTrainingSession)}
+                    className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+                    disabled={nextTrainingSession.daysUntil !== 0}
+                  >
+                    {nextTrainingSession.daysUntil === 0 ? 'Mark Attendance' : 'Not Today'}
+                  </Button>
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -1391,6 +1437,7 @@ const Dashboard = () => {
             </DialogHeader>
             {selectedProgramDay && (
               <div className="space-y-4">
+
                 {/* Program Header */}
                 <div className="p-4 bg-primary/5 dark:bg-primary/10 rounded-lg border">
                   <h3 className="text-lg font-semibold text-primary mb-2">
